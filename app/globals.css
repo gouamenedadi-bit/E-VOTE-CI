@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ci-orange: #f77f00;
+  --color-ci-green: #009e60;
+  --color-ci-dark: #1b2430;
+  --color-ci-gray: #4a5568;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background-color: #ffffff;
+  color: var(--color-ci-dark);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-ci-orange);
+  outline-offset: 2px;
+}

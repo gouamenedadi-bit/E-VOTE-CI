@@ -1,0 +1,530 @@
+CAHIER DES CHARGES ET PROMPT PROFESSIONNEL : PLATEFORME DE VOTE ÉLECTRONIQUE EN CÔTE D’IVOIRE
+
+Projet de plateforme web sécurisée Élections nationales et locales
+
+Nom provisoire : E-VOTE CI
+
+L'objectif est de concevoir une plateforme permettant d'organiser des scrutins électroniques en Côte d’Ivoire, notamment pour les élections présidentielles, législatives, municipales, régionales et sénatoriales.
+
+Il faut cependant distinguer deux usages : une plateforme de simulation ou de consultation, et un système de vote officiel qui détermine juridiquement le résultat d'une élection. Pour ce dernier, la carte d'électeur et son numéro ne suffisent pas à garantir l'identité, le secret du vote ou l'absence de votes multiples. Le projet doit donc intégrer une architecture de sécurité, une vérification indépendante et un cadre légal validé avant toute utilisation officielle.
+
+1. Les fonctionnalités principales à intégrer
+
+1. Identification et vérification des électeurs
+
+Saisie du numéro d'électeur.
+
+Vérification de l'inscription sur la liste électorale officielle, si un accès autorisé existe.
+
+Vérification complémentaire de l'identité.
+
+Contrôle empêchant un électeur de voter plusieurs fois pour le même scrutin.
+
+2. Interface de vote
+
+Affichage des candidats et de leurs informations officielles.
+
+Présentation adaptée à chaque élection.
+
+Sélection claire du candidat ou du bulletin blanc, selon les règles du scrutin.
+
+Confirmation avant validation définitive.
+
+Reçu de participation ne révélant jamais le choix de l'électeur.
+
+3. Sécurité et lutte contre la fraude
+
+Séparation complète entre l'identité de l'électeur et son bulletin.
+
+Chiffrement des données sensibles.
+
+Protection contre les votes multiples, les accès non autorisés et les modifications des résultats.
+
+Journalisation des opérations administratives.
+
+Audits indépendants et vérification des résultats.
+
+4. Compilation et publication des résultats
+
+Décompte automatique et contrôles de cohérence.
+
+Résultats par bureau de vote, commune, département et région.
+
+Procès-verbaux numériques et archivage.
+
+Tableau de bord des résultats provisoires et définitifs, avec validation et historique.
+
+La CEI décrit actuellement un processus de vote reposant notamment sur l'inscription préalable, la vérification de l'identité, le bulletin, l'urne et les procès-verbaux. Le projet devra prévoir comment ses mécanismes électroniques s'articuleraient avec les procédures légales et l'autorité électorale compétente. 
+CEI Côte d'Ivoire
++1
+
+2. Le prompt complet à copier dans ton IDE
+
+Voici un prompt que tu peux donner à un assistant de développement dans ton IDE pour concevoir le projet, en commençant par un prototype fonctionnel et une architecture qui pourra être auditée.
+
+PROMPT DE DÉVELOPPEMENT — E-VOTE CI
+PROMPT DE DÉVELOPPEMENT — E-VOTE CI
+Plateforme sécurisée de vote électronique pour la Côte d’Ivoire
+1. RÔLE
+
+Agis comme une équipe expérimentée composée de :
+
+Un architecte logiciel spécialisé dans les systèmes critiques.
+Un ingénieur cybersécurité spécialisé dans les systèmes électoraux.
+Un expert en bases de données et en cryptographie.
+Un développeur full-stack React / Next.js.
+Un expert UI/UX en accessibilité et applications publiques.
+Un spécialiste des audits, de la conformité et de la protection des données.
+
+Tu dois concevoir une plateforme professionnelle, moderne, responsive, accessible, sécurisée et évolutive appelée E-VOTE CI.
+
+IMPORTANT : Le premier livrable est un prototype de démonstration et de simulation. Il ne doit jamais être présenté comme un système homologué ou utilisé pour une élection officielle sans autorisation, conformité juridique, tests approfondis et audits indépendants.
+
+2. OBJECTIF DU PROJET
+
+Créer une plateforme permettant de gérer des consultations et des scrutins électroniques simulés, avec la possibilité d'étudier une éventuelle évolution vers un système électoral officiel.
+
+Les types de scrutins à prendre en charge sont :
+
+Élection présidentielle.
+Élections législatives.
+Élections municipales.
+Élections régionales.
+Élections sénatoriales.
+
+Le système doit permettre de gérer les candidats, les électeurs de test, les bureaux de vote, les périodes de scrutin, la vérification des participations, le dépouillement et les résultats.
+
+3. TECHNOLOGIES
+
+Utilise les technologies suivantes :
+
+Frontend : Next.js, React et TypeScript.
+Interface : Tailwind CSS et composants accessibles.
+Backend : API sécurisées Next.js, avec logique métier côté serveur.
+Base de données : Supabase PostgreSQL.
+Authentification administrative : Supabase Auth avec MFA.
+Hébergement de démonstration : Vercel.
+Stockage : Supabase Storage pour les documents non secrets et les images officielles.
+Validation : Zod.
+Tests : Vitest et Playwright.
+Gestion des erreurs : système centralisé de journalisation et de surveillance.
+
+Organise le projet pour que les fonctions critiques puissent être isolées et testées indépendamment du frontend.
+
+Ne place jamais de clé secrète ou de clé d'administration dans le navigateur.
+
+4. IDENTITÉ VISUELLE
+
+Créer une interface institutionnelle, moderne et sobre.
+
+Palette :
+
+Orange : rappel du drapeau ivoirien.
+Blanc : clarté et neutralité.
+Vert : rappel du drapeau ivoirien.
+Bleu foncé ou gris foncé : lisibilité et sérieux.
+
+Le design doit :
+
+Être responsive sur ordinateur, tablette et téléphone.
+Fonctionner sur les connexions lentes.
+Utiliser des boutons larges et explicites.
+Être lisible pour les personnes âgées.
+Respecter les règles d'accessibilité.
+Éviter les animations distrayantes.
+Présenter tous les candidats selon les mêmes règles graphiques, sans mise en avant discriminatoire.
+5. LES PROFILS UTILISATEURS
+
+Créer les rôles suivants :
+
+A. Super administrateur
+
+Configure l'application.
+Crée les élections de démonstration.
+Attribue les rôles administratifs.
+Consulte les journaux d'audit.
+Ne peut pas consulter les choix individuels des électeurs.
+
+B. Administrateur électoral
+
+Gère les scrutins qui lui sont attribués.
+Configure les bureaux de vote et les circonscriptions.
+Ajoute les candidats et les documents officiels.
+Contrôle les étapes d'ouverture et de clôture.
+
+C. Agent de bureau de vote
+
+Accède uniquement à son bureau.
+Vérifie les électeurs autorisés dans le cadre du scénario de démonstration.
+Enregistre la participation.
+Ne peut pas modifier un bulletin déjà déposé.
+
+D. Observateur
+
+Consulte les opérations autorisées.
+Accède aux procès-verbaux et aux résultats publiables.
+Consulte les anomalies et les rapports d'audit auxquels il a droit.
+
+E. Électeur de démonstration
+
+Consulte les scrutins auxquels son compte fictif est autorisé à participer.
+Effectue un vote de test.
+Consulte son statut de participation sans pouvoir retrouver son choix.
+6. INSCRIPTION ET IDENTIFICATION
+
+Créer une interface d'identification de démonstration qui reproduit le parcours envisagé avec une carte d'électeur.
+
+Champs :
+
+Numéro d'électeur fictif.
+Nom et prénoms de démonstration, si nécessaires au scénario.
+Code de vérification à usage unique, si configuré.
+
+Règles :
+
+N'utiliser que des données fictives dans le prototype.
+Ne pas demander de photographie réelle de carte d'électeur.
+Ne pas prétendre vérifier l'identité réelle auprès du fichier électoral.
+Prévoir une interface d'intégration future avec une source officielle autorisée.
+Ne pas considérer le seul numéro d'électeur comme une preuve d'identité suffisante.
+
+L'identification doit être séparée techniquement de l'enregistrement du bulletin. Une fois l'électeur autorisé, le système délivre un jeton de vote à usage unique qui ne révèle pas son identité au système de dépouillement.
+
+7. GESTION DES ÉLECTIONS
+
+Créer un espace d'administration avec un formulaire de création de scrutin.
+
+Champs :
+
+Nom du scrutin.
+Type d'élection.
+Description.
+Date et heure de début.
+Date et heure de fin.
+Zone géographique.
+Circonscription.
+Bureaux concernés.
+Statut : brouillon, en préparation, ouvert, suspendu, clôturé, audité, publié.
+Règles du scrutin.
+Documents de référence.
+Liste des candidats.
+
+Prévoir une configuration distincte pour chaque type d'élection, car les circonscriptions et les règles de candidature peuvent différer.
+
+8. GESTION DES CANDIDATS
+
+Créer une fiche pour chaque candidat ou liste :
+
+Nom complet ou nom officiel de la liste.
+Parti ou groupement, si applicable.
+Photo ou logo officiel.
+Circonscription.
+Numéro d'ordre attribué selon la procédure officielle.
+Biographie ou présentation.
+Documents de candidature validés.
+Statut de validation.
+
+Les candidats doivent apparaître avec un traitement visuel égal. Les photos, noms et numéros doivent être contrôlés avant publication.
+
+9. PARCOURS DE VOTE
+
+Créer une interface de vote simple, sécurisée et compréhensible.
+
+Étape 1 : l'électeur accède à son espace de démonstration.
+
+Étape 2 : le système affiche les scrutins auxquels il est autorisé à participer.
+
+Étape 3 : l'électeur choisit un scrutin.
+
+Étape 4 : le système affiche les candidats ou listes dans un ordre défini à l'avance et documenté.
+
+Étape 5 : l'électeur sélectionne son choix.
+
+Étape 6 : une page de confirmation affiche son choix avant validation.
+
+Étape 7 : l'électeur confirme son vote.
+
+Étape 8 : le système vérifie que le jeton est valide, non utilisé et associé au scrutin concerné.
+
+Étape 9 : le bulletin est chiffré et enregistré selon le protocole de démonstration.
+
+Étape 10 : le jeton est marqué comme consommé dans une opération atomique.
+
+Étape 11 : l'électeur reçoit une confirmation de participation qui ne révèle pas son choix.
+
+Prévoir le vote blanc ou les autres options uniquement si les règles du scrutin les autorisent.
+
+10. SECRET DU VOTE
+
+Le secret du vote est une exigence fondamentale.
+
+Ne jamais stocker dans une même table ou dans un même enregistrement :
+
+L'identité de l'électeur.
+Le numéro d'électeur.
+Son choix électoral.
+
+Créer des systèmes séparés :
+
+A. Registre de participation :
+
+Identifiant technique de participation.
+Scrutin.
+Statut du jeton.
+Date de validation.
+Bureau de vote, si nécessaire.
+
+B. Registre des bulletins :
+
+Identifiant aléatoire du bulletin.
+Scrutin.
+Bulletin chiffré.
+Preuve d'intégrité.
+Horodatage technique limité au nécessaire.
+
+Aucune table ne doit permettre de reconstituer directement le choix individuel d'un électeur.
+
+Ne pas conserver de correspondance entre l'identité et le bulletin après l'émission du droit de vote. Éviter également les journaux techniques qui pourraient réintroduire cette correspondance.
+
+Pour un éventuel système officiel, étudier des protocoles cryptographiques de vote vérifiable de bout en bout, avec expertise indépendante. Ne pas inventer un protocole cryptographique maison.
+
+11. PROTECTION CONTRE LA FRAUDE
+
+Mettre en place les protections suivantes :
+
+Authentification forte des administrateurs.
+Autorisations selon le rôle et le bureau.
+Contrôles côté serveur pour toutes les opérations critiques.
+Jetons de vote à usage unique, à durée de validité limitée.
+Contraintes d'unicité en base de données.
+Transactions atomiques pour éviter les doubles votes.
+Protection contre les attaques par force brute.
+Limitation des tentatives d'accès.
+Protection CSRF, XSS et injections SQL.
+Contrôle strict des sessions.
+Chiffrement des données sensibles.
+Sauvegardes protégées.
+Détection des comportements anormaux.
+Alertes de sécurité.
+Journalisation des opérations administratives.
+Gestion documentée des incidents.
+
+Les journaux doivent être protégés contre les modifications et ne doivent pas contenir les choix des électeurs ni de données permettant de relier directement un électeur à son bulletin.
+
+12. TABLEAU DE BORD
+
+Créer un tableau de bord administratif qui affiche :
+
+Scrutins en préparation.
+Scrutins ouverts.
+Scrutins clôturés.
+Nombre d'électeurs éligibles dans le scénario fictif.
+Nombre de participations enregistrées.
+Taux de participation.
+Nombre de bureaux actifs.
+Alertes de sécurité.
+Anomalies à examiner.
+État des sauvegardes.
+État des audits.
+
+Ne pas afficher les résultats d'un scrutin avant le moment prévu par ses règles de publication.
+
+Les chiffres doivent être calculés depuis les données validées, et non depuis des compteurs manipulables par le navigateur.
+
+13. DÉPOUILLEMENT ET COMPILATION
+
+Créer un module de dépouillement pour les scrutins simulés.
+
+Fonctionnalités :
+
+Décompte des bulletins valides.
+Décompte des bulletins blancs et nuls, si applicables.
+Contrôle du nombre de bulletins par rapport aux participations.
+Contrôle des résultats par bureau.
+Détection des incohérences.
+Génération des procès-verbaux de démonstration.
+Export PDF et CSV.
+Historique des corrections autorisées.
+Validation à plusieurs niveaux avant publication.
+
+Aucune modification manuelle d'un résultat ne doit être silencieuse. Toute correction doit produire une trace d'audit et exiger les autorisations requises.
+
+Les résultats publiés doivent pouvoir être rapprochés des procès-verbaux de chaque bureau et d'un rapport de vérification indépendant.
+
+14. PUBLICATION DES RÉSULTATS
+
+Créer une page publique de résultats.
+
+Filtres :
+
+Type d'élection.
+Région.
+Département.
+Commune.
+Circonscription.
+Bureau de vote.
+
+Afficher :
+
+Participation.
+Nombre de bulletins dépouillés.
+Résultats par candidat ou liste.
+Pourcentages calculés à partir des dénominateurs clairement indiqués.
+Statut provisoire ou définitif.
+Heure de dernière actualisation.
+Procès-verbaux publiables.
+Rapport de contrôle.
+
+Afficher clairement les résultats non encore vérifiés comme provisoires. Seule l'autorité compétente peut valider les résultats officiels.
+
+15. BASE DE DONNÉES
+
+Concevoir un schéma PostgreSQL normalisé comprenant au minimum :
+
+users
+roles
+permissions
+elections
+election_types
+constituencies
+regions
+departments
+communes
+polling_stations
+candidates
+candidate_documents
+demo_voters
+voter_eligibility
+voting_credentials
+participation_records
+encrypted_ballots
+tally_records
+result_publications
+audit_events
+incident_reports
+election_documents
+
+Définir les relations, contraintes, index, politiques RLS et migrations.
+
+La table des électeurs fictifs et celle des bulletins doivent être séparées. Les politiques RLS doivent empêcher un utilisateur ordinaire de consulter les données des autres électeurs ou d'accéder aux bulletins non publiés.
+
+16. CONFORMITÉ ET GOUVERNANCE
+
+Créer un module de conformité et de préparation à l'homologation comprenant :
+
+Inventaire des données personnelles.
+Finalités de traitement.
+Durées de conservation.
+Contrôle des accès.
+Procédure de gestion des incidents.
+Documentation des traitements.
+Évaluation des risques.
+Plan de continuité et de reprise.
+Procédure d'audit indépendant.
+Registre des versions logicielles.
+Procédure de validation avant mise en production.
+
+Prévoir une revue juridique spécialisée en droit électoral ivoirien, en protection des données et en cybersécurité.
+
+Aucun accès au fichier électoral officiel ne doit être développé sans autorisation et spécification d'intégration validée par l'autorité compétente.
+
+17. TESTS OBLIGATOIRES
+
+Créer des tests automatisés pour vérifier notamment :
+
+Un électeur non autorisé ne peut pas obtenir de jeton.
+Un jeton ne peut être utilisé qu'une fois.
+Deux requêtes simultanées ne peuvent pas faire accepter deux bulletins pour le même droit de vote.
+Un bulletin enregistré ne peut pas être modifié par l'électeur.
+Un administrateur ne peut pas retrouver le choix individuel d'un électeur.
+Un observateur ne peut pas modifier les résultats.
+Un agent ne peut pas administrer un bureau qui ne lui est pas attribué.
+Les résultats recalculés correspondent aux bulletins acceptés.
+Les contrôles détectent les incohérences.
+Les journaux ne divulguent aucune information permettant de relier l'identité à un bulletin.
+Le système résiste aux interruptions et aux tentatives de soumission répétées.
+Les procédures de sauvegarde et de restauration fonctionnent.
+
+Créer également un plan de tests de charge, de pénétration et de reprise après incident.
+
+18. ÉCRANS À CONSTRUIRE
+
+Développer dans cet ordre :
+
+Page d'accueil publique.
+Page de présentation et de fonctionnement.
+Connexion de démonstration.
+Vérification d'éligibilité fictive.
+Tableau de bord électeur.
+Page de sélection du scrutin.
+Liste des candidats.
+Page de confirmation.
+Confirmation de participation.
+Tableau de bord administrateur.
+Gestion des élections.
+Gestion des candidats.
+Gestion des bureaux de vote.
+Module de dépouillement.
+Page publique des résultats.
+Journal d'audit.
+Centre de conformité et de sécurité.
+19. LIVRABLES ATTENDUS
+
+Commence par fournir :
+
+Le cahier des charges fonctionnel.
+L'architecture technique.
+Le schéma de base de données.
+Le modèle des rôles et permissions.
+Les parcours utilisateurs.
+Les maquettes des écrans.
+Le plan de sécurité.
+Les tests d'acceptation.
+Un prototype fonctionnel utilisant uniquement des données fictives.
+
+Ne génère pas tout le code en un seul bloc. Construis le projet par étapes, valide chaque module, écris les tests et documente les décisions techniques.
+
+20. RÈGLE FINALE
+
+La priorité absolue est la protection du secret du vote, l'intégrité des résultats, l'accessibilité et la confiance des utilisateurs.
+
+Ne prétends jamais qu'un système est inviolable. Documente ses limites, les risques résiduels, les contrôles mis en place et les vérifications indépendantes encore nécessaires.
+
+L'application doit rester une plateforme de démonstration tant que les autorisations, le cadre légal, l'infrastructure et l'homologation électorale ne sont pas établis.
+
+3. Les améliorations essentielles à prévoir
+Améliorations prioritaires
+
+A. Ne pas confondre identification et vote
+
+Le numéro d'électeur permettrait, avec un accès officiel autorisé, de vérifier l'éligibilité. Mais il ne devrait jamais suffire à lui seul pour voter en ligne : une personne qui connaît le numéro d'un autre électeur pourrait tenter de se faire passer pour lui.
+
+B. Garantir le secret du vote
+
+Le système doit vérifier qu'une personne a le droit de voter, sans permettre ensuite de découvrir pour quel candidat elle a voté. C'est une séparation technique à concevoir dès le départ.
+
+C. Prévoir une vérification indépendante
+
+Un résultat calculé automatiquement n'est pas forcément exact. Il faut pouvoir contrôler les bulletins acceptés, les totaux, les procès-verbaux et les traces d'audit sans exposer les choix individuels.
+
+D. Prévoir les problèmes de connexion
+
+En Côte d'Ivoire, il faudra envisager les interruptions Internet, les appareils partagés, les coupures d'électricité et les électeurs qui ont besoin d'assistance. Il faut notamment définir comment reprendre une session interrompue sans créer de double vote.
+
+4. Le point juridique à régler avant une élection réelle
+
+Le Code électoral ivoirien pose notamment le principe d'un suffrage universel, libre, égal et secret. La CEI décrit également les opérations de vérification, de vote, de dépouillement et de centralisation des résultats. 
+Gouvernement de la Côte d'Ivoire
++2
+
+Il faudra donc obtenir des réponses officielles à trois questions :
+
+L'autorité électorale compétente peut-elle autoriser un vote à distance par Internet pour ces élections ?
+
+Existe-t-il un dispositif légal d'accès et de vérification du fichier électoral pour une telle plateforme ?
+
+Quelles procédures d'authentification, de contrôle, d'audit et de proclamation seraient obligatoires ?
+
+Ma recommandation pour démarrer : construis d'abord E-VOTE CI comme une plateforme de simulation complète, avec des électeurs fictifs et plusieurs scrutins. Tu pourras ainsi tester le parcours de vote, la sécurité, les résultats et les tableaux de bord sans mettre en danger une véritable élection ni collecter des données électorales réelles.
+
+Pour une utilisation officielle, le projet devra être conçu avec l'autorité électorale compétente, et non simplement déployé comme une application indépendante.
