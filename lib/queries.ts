@@ -1,5 +1,6 @@
 import "server-only";
 import { isSupabaseConfigured, getServiceRoleClient } from "./db/supabase-server";
+import { reconcile } from "./core/tally";
 import * as demo from "./demo/store";
 
 /**
@@ -41,6 +42,93 @@ export interface ElectionTypeSummary {
   id: string;
   code: string;
   name: string;
+}
+
+export interface PollingStationSummary {
+  id: string;
+  code: string;
+  name: string;
+  communeName: string;
+  isActive: boolean;
+}
+
+export async function listPollingStations(): Promise<PollingStationSummary[]> {
+  if (!isSupabaseConfigured()) {
+    return demo.listPollingStations().map((s) => ({
+      id: s.id,
+      code: s.code,
+      name: s.name,
+      communeName: s.communeName,
+      isActive: s.isActive,
+    }));
+  }
+
+  const client = getServiceRoleClient();
+  const { data, error } = await client
+    .from("polling_stations")
+    .select("id, code, name, commune_name, is_active")
+    .order("code", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    communeName: row.commune_name ?? "",
+    isActive: row.is_active,
+  }));
+}
+
+export async function listPollingStationsForElection(electionId: string): Promise<PollingStationSummary[]> {
+  if (!isSupabaseConfigured()) {
+    return demo.listPollingStationsForElection(electionId).map((s) => ({
+      id: s.id,
+      code: s.code,
+      name: s.name,
+      communeName: s.communeName,
+      isActive: s.isActive,
+    }));
+  }
+
+  const client = getServiceRoleClient();
+  const { data, error } = await client
+    .from("election_polling_stations")
+    .select("polling_stations(id, code, name, commune_name, is_active)")
+    .eq("election_id", electionId);
+  if (error) throw error;
+
+  return (data ?? [])
+    .map((row) => {
+      const station = row.polling_stations as unknown as
+        | { id: string; code: string; name: string; commune_name: string | null; is_active: boolean }
+        | { id: string; code: string; name: string; commune_name: string | null; is_active: boolean }[]
+        | null;
+      return Array.isArray(station) ? station[0] : station;
+    })
+    .filter((s): s is NonNullable<typeof s> => Boolean(s))
+    .map((s) => ({ id: s.id, code: s.code, name: s.name, communeName: s.commune_name ?? "", isActive: s.is_active }));
+}
+
+/**
+ * Assignation deterministe et stable d'un bureau de vote parmi ceux
+ * rattaches au scrutin (doc 01 §4.4) — simplification de prototype en
+ * l'absence de fichier electoral reel (doc 01 §4.1). Retourne null si
+ * aucun bureau n'est rattache.
+ */
+export async function pickPollingStationForVoter(
+  electionId: string,
+  voterId: string
+): Promise<string | null> {
+  if (!isSupabaseConfigured()) {
+    return demo.pickPollingStationForVoter(electionId, voterId);
+  }
+
+  const stations = await listPollingStationsForElection(electionId);
+  if (stations.length === 0) return null;
+  let hash = 0;
+  for (let i = 0; i < voterId.length; i++) {
+    hash = (hash * 31 + voterId.charCodeAt(i)) % stations.length;
+  }
+  return stations[Math.abs(hash) % stations.length]!.id;
 }
 
 export interface IncidentSummary {
@@ -287,21 +375,39 @@ export interface PublicationInfo {
   publishedAt: Date | null;
 }
 
+export interface StationReconciliation {
+  pollingStationId: string | null;
+  pollingStationLabel: string;
+  participationCount: number;
+  ballotCount: number;
+  consistent: boolean;
+}
+
 export interface TallySummary {
   hasTally: boolean;
   records: TallyResultRow[];
   participationCount: number;
   ballotCount: number;
   consistent: boolean;
+  stations: StationReconciliation[];
   publication: PublicationInfo | null;
+}
+
+function countByStation<T extends { pollingStationId: string | null }>(items: T[]): Map<string | null, number> {
+  const counts = new Map<string | null, number>();
+  for (const item of items) {
+    counts.set(item.pollingStationId, (counts.get(item.pollingStationId) ?? 0) + 1);
+  }
+  return counts;
 }
 
 function buildTallySummary(
   rawRecords: Array<{ candidateId: string | null; ballotType: "valid" | "blank" | "null"; voteCount: number }>,
-  ballotCount: number,
-  participationCount: number,
+  participations: Array<{ pollingStationId: string | null }>,
+  ballots: Array<{ pollingStationId: string | null }>,
   publication: PublicationInfo | null,
-  nameById: Map<string, string>
+  nameById: Map<string, string>,
+  stationNameById: Map<string, string>
 ): TallySummary {
   const records = rawRecords.map((r) => ({
     candidateId: r.candidateId,
@@ -314,31 +420,48 @@ function buildTallySummary(
     voteCount: r.voteCount,
   }));
 
+  const reconciliation = reconcile(countByStation(participations), countByStation(ballots));
+  const stations: StationReconciliation[] = reconciliation.map((r) => ({
+    pollingStationId: r.pollingStationId,
+    pollingStationLabel: r.pollingStationId
+      ? stationNameById.get(r.pollingStationId) ?? "Bureau inconnu"
+      : "Non affecté à un bureau",
+    participationCount: r.participationCount,
+    ballotCount: r.ballotCount,
+    consistent: r.consistent,
+  }));
+
   return {
     hasTally: rawRecords.length > 0,
     records,
-    participationCount,
-    ballotCount,
-    consistent: participationCount === ballotCount,
+    participationCount: participations.length,
+    ballotCount: ballots.length,
+    consistent: stations.every((s) => s.consistent),
+    stations,
     publication,
   };
 }
 
 export async function getTallySummary(electionId: string): Promise<TallySummary> {
-  const candidates = await listCandidates(electionId);
+  const [candidates, stations] = await Promise.all([
+    listCandidates(electionId),
+    listPollingStations(),
+  ]);
   const nameById = new Map(candidates.map((c) => [c.id, c.displayName]));
+  const stationNameById = new Map(stations.map((s) => [s.id, `${s.name} (${s.code})`]));
 
   if (!isSupabaseConfigured()) {
     const records = await demo.demoTallyRepository.listForElection(electionId);
     const ballots = await demo.demoBallotRepository.listForElection(electionId);
-    const participationCount = await demo.demoParticipationRepository.countForElection(electionId);
+    const participations = await demo.demoParticipationRepository.listForElection(electionId);
     const publication = await demo.demoResultPublicationRepository.getForElection(electionId);
     return buildTallySummary(
       records,
-      ballots.length,
-      participationCount,
+      participations,
+      ballots,
       publication ? { status: publication.status, publishedAt: publication.publishedAt } : null,
-      nameById
+      nameById,
+      stationNameById
     );
   }
 
@@ -350,15 +473,15 @@ export async function getTallySummary(electionId: string): Promise<TallySummary>
     .eq("election_id", electionId);
   if (tallyError) throw tallyError;
 
-  const { count: ballotCount, error: ballotError } = await client
+  const { data: ballotRows, error: ballotError } = await client
     .from("encrypted_ballots")
-    .select("id", { count: "exact", head: true })
+    .select("polling_station_id")
     .eq("election_id", electionId);
   if (ballotError) throw ballotError;
 
-  const { count: participationCount, error: participationError } = await client
+  const { data: participationRows, error: participationError } = await client
     .from("participation_records")
-    .select("id", { count: "exact", head: true })
+    .select("polling_station_id")
     .eq("election_id", electionId);
   if (participationError) throw participationError;
 
@@ -376,12 +499,13 @@ export async function getTallySummary(electionId: string): Promise<TallySummary>
       ballotType: r.ballot_type,
       voteCount: r.vote_count,
     })),
-    ballotCount ?? 0,
-    participationCount ?? 0,
+    (participationRows ?? []).map((r) => ({ pollingStationId: r.polling_station_id })),
+    (ballotRows ?? []).map((r) => ({ pollingStationId: r.polling_station_id })),
     publicationRow
       ? { status: publicationRow.status, publishedAt: publicationRow.published_at ? new Date(publicationRow.published_at) : null }
       : null,
-    nameById
+    nameById,
+    stationNameById
   );
 }
 

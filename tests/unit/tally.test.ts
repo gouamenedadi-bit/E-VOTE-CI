@@ -17,7 +17,8 @@ function makeBallot(
   electionId: string,
   choice: { type: "valid" | "blank" | "null"; candidateId: string | null },
   masterKeyProvider: FixedMasterKeyProvider,
-  prevHash: string
+  prevHash: string,
+  pollingStationId: string | null = null
 ): EncryptedBallot {
   const envelope = encryptBallotPayload(choice, masterKeyProvider);
   const content = { electionId, ciphertext: envelope.ciphertext.toString("hex") };
@@ -25,6 +26,7 @@ function makeBallot(
   return {
     id: crypto.randomUUID(),
     electionId,
+    pollingStationId,
     ciphertext: envelope.ciphertext,
     iv: envelope.iv,
     authTag: envelope.authTag,
@@ -122,9 +124,9 @@ describe("runTally", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.consistent).toBe(true);
-    expect(result.participationCount).toBe(2);
-    expect(result.ballotCount).toBe(2);
+    expect(result.reconciliation.every((r) => r.consistent)).toBe(true);
+    expect(result.reconciliation[0]?.participationCount).toBe(2);
+    expect(result.reconciliation[0]?.ballotCount).toBe(2);
     expect(deps.incidentRepo.incidents).toHaveLength(0);
 
     const chained = result.records.map((r) => ({
@@ -132,6 +134,7 @@ describe("runTally", () => {
       recordHash: r.integrityRecordHash,
       content: {
         electionId: r.electionId,
+        pollingStationId: r.pollingStationId,
         candidateId: r.candidateId,
         ballotType: r.ballotType,
         voteCount: r.voteCount,
@@ -164,9 +167,48 @@ describe("runTally", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.consistent).toBe(false);
+    expect(result.reconciliation.every((r) => r.consistent)).toBe(false);
     expect(deps.incidentRepo.incidents).toHaveLength(1);
     expect(deps.incidentRepo.incidents[0]?.category).toBe("reconciliation_mismatch");
+  });
+
+  it("reconcilie independamment chaque bureau de vote (doc 01 §4.4)", async () => {
+    const deps = setupTallyDeps();
+    // Bureau A : 2 participations, 2 bulletins -> coherent.
+    // Bureau B : 2 participations, 1 bulletin -> incoherent.
+    let prevHash = GENESIS_HASH;
+    for (const stationId of ["station-A", "station-A", "station-B"]) {
+      const ballot = makeBallot(
+        "election-1",
+        { type: "valid", candidateId: "cand-A" },
+        deps.masterKeyProvider,
+        prevHash,
+        stationId
+      );
+      await deps.ballotRepo.insert(ballot);
+      prevHash = ballot.integrityRecordHash;
+    }
+    for (const stationId of ["station-A", "station-A", "station-B", "station-B"]) {
+      await deps.participationRepo.record({
+        id: crypto.randomUUID(),
+        electionId: "election-1",
+        pollingStationId: stationId,
+        credentialId: crypto.randomUUID(),
+        recordedAt: deps.clock.now(),
+      });
+    }
+
+    const result = await runTally("election-1", deps);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const stationA = result.reconciliation.find((r) => r.pollingStationId === "station-A");
+    const stationB = result.reconciliation.find((r) => r.pollingStationId === "station-B");
+
+    expect(stationA?.consistent).toBe(true);
+    expect(stationB?.consistent).toBe(false);
+    expect(deps.incidentRepo.incidents).toHaveLength(1);
+    expect(deps.incidentRepo.incidents[0]?.description).toContain("station-B");
   });
 
   it("est idempotent : un second depouillement ne recalcule pas et ne duplique rien", async () => {

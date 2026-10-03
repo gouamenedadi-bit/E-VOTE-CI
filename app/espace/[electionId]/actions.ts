@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { getVoterSession } from "@/lib/session";
 import { getRuntimeDeps } from "@/lib/runtime";
+import { pickPollingStationForVoter } from "@/lib/queries";
 import { issueVotingToken, recordParticipation } from "@/lib/core/voting-token";
 import { depositBallot } from "@/lib/core/ballot";
 import { appendAuditEvent } from "@/lib/core/audit";
@@ -45,9 +46,11 @@ export async function castVoteAction(formData: FormData): Promise<void> {
     redirect("/espace");
   }
 
+  const pollingStationId = await pickPollingStationForVoter(electionId, voterId);
+
   await recordParticipation(
     { id: issued.credentialId, electionId },
-    null,
+    pollingStationId,
     deps.participationRepo,
     deps.clock
   );
@@ -57,6 +60,7 @@ export async function castVoteAction(formData: FormData): Promise<void> {
       rawToken: issued.rawToken,
       electionId,
       choice: { type: ballotType, candidateId: ballotType === "blank" ? null : candidateId },
+      pollingStationId,
     },
     deps
   );

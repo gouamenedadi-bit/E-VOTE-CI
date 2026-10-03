@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin-session";
-import { getElection, listCandidates } from "@/lib/queries";
+import { getElection, listCandidates, listPollingStations, listPollingStationsForElection } from "@/lib/queries";
+import { attachPollingStationAction } from "../../bureaux/actions";
 import { addCandidateAction, changeElectionStatusAction } from "./actions";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -24,6 +25,12 @@ export default async function ManageElectionPage({
   }
 
   const candidates = await listCandidates(electionId);
+  const [allStations, attachedStations] = await Promise.all([
+    listPollingStations(),
+    listPollingStationsForElection(electionId),
+  ]);
+  const attachedIds = new Set(attachedStations.map((s) => s.id));
+  const availableStations = allStations.filter((s) => !attachedIds.has(s.id));
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10 flex flex-col gap-6">
@@ -118,6 +125,57 @@ export default async function ManageElectionPage({
         {election.status !== "draft" && (
           <p className="text-sm text-ci-gray">
             Les candidats ne peuvent être ajoutés que tant que le scrutin est en brouillon.
+          </p>
+        )}
+      </div>
+
+      <div>
+        <h2 className="font-semibold text-ci-dark mb-3">Bureaux concernés</h2>
+        <ul className="flex flex-col gap-2 mb-4">
+          {attachedStations.map((s) => (
+            <li key={s.id} className="border border-gray-200 rounded-md p-3">
+              <strong>{s.code}</strong> — {s.name} · {s.communeName}
+            </li>
+          ))}
+          {attachedStations.length === 0 && (
+            <li className="text-ci-gray text-sm">
+              Aucun bureau rattaché — les bulletins de ce scrutin ne seront pas ventilés par bureau.
+            </li>
+          )}
+        </ul>
+
+        {election.status !== "closed" && availableStations.length > 0 && (
+          <form action={attachPollingStationAction} className="flex gap-3">
+            <input type="hidden" name="electionId" value={electionId} />
+            <select
+              name="pollingStationId"
+              required
+              className="flex-1 min-h-[44px] rounded-md border border-gray-300 px-3 text-base"
+            >
+              {availableStations.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.code} — {s.name} ({s.communeName})
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="min-h-[44px] rounded-md border-2 border-ci-dark text-ci-dark font-semibold px-5"
+            >
+              + Rattacher
+            </button>
+          </form>
+        )}
+        {election.status !== "closed" && availableStations.length === 0 && allStations.length > 0 && (
+          <p className="text-sm text-ci-gray">Tous les bureaux existants sont déjà rattachés.</p>
+        )}
+        {allStations.length === 0 && (
+          <p className="text-sm text-ci-gray">
+            Aucun bureau n&apos;existe encore —{" "}
+            <Link href="/admin/bureaux" className="text-ci-green font-semibold">
+              en créer un
+            </Link>
+            .
           </p>
         )}
       </div>

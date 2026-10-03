@@ -56,6 +56,7 @@ export interface CredentialRepository {
 export interface ParticipationRepository {
   record(participation: ParticipationRecord): Promise<void>;
   countForElection(electionId: string): Promise<number>;
+  listForElection(electionId: string): Promise<ParticipationRecord[]>;
 }
 
 export interface BallotRepository {

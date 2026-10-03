@@ -80,7 +80,7 @@ export type DepositBallotOutcome =
  * doc 05 §1 - reprise de session).
  */
 export async function depositBallot(
-  params: { rawToken: string; electionId: string; choice: BallotChoice },
+  params: { rawToken: string; electionId: string; choice: BallotChoice; pollingStationId?: string | null },
   deps: {
     credentialRepo: CredentialRepository;
     ballotRepo: BallotRepository;
@@ -112,6 +112,7 @@ export async function depositBallot(
   const ballot: EncryptedBallot = {
     id: randomUUID(),
     electionId: params.electionId,
+    pollingStationId: params.pollingStationId ?? null,
     ciphertext: envelope.ciphertext,
     iv: envelope.iv,
     authTag: envelope.authTag,

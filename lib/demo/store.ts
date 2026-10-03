@@ -67,12 +67,22 @@ export interface DemoVoter {
   fullName: string;
 }
 
+export interface DemoPollingStation {
+  id: string;
+  code: string;
+  name: string;
+  communeName: string;
+  isActive: boolean;
+}
+
 interface DemoStoreState {
   electionTypes: Map<string, DemoElectionType>;
   voters: Map<string, DemoVoter>;
   votersByNumber: Map<string, string>;
   elections: Map<string, DemoElection>;
   candidates: Map<string, DemoCandidate[]>;
+  pollingStations: Map<string, DemoPollingStation>;
+  electionPollingStations: Map<string, Set<string>>;
   eligibility: Map<string, VoterEligibility>;
   credentials: Map<string, VotingCredential>;
   credentialsByVoterElection: Map<string, string>;
@@ -103,6 +113,8 @@ function seed(): DemoStoreState {
     votersByNumber: new Map(),
     elections: new Map(),
     candidates: new Map(),
+    pollingStations: new Map(),
+    electionPollingStations: new Map(),
     eligibility: new Map(),
     credentials: new Map(),
     credentialsByVoterElection: new Map(),
@@ -150,6 +162,15 @@ function seed(): DemoStoreState {
       pollingStationId: null,
       isEligible: true,
     });
+  }
+
+  const stationSeeds: Array<[string, string, string]> = [
+    ["BV-001", "École A", "Abidjan"],
+    ["BV-002", "École B", "Abidjan"],
+  ];
+  for (const [code, name, communeName] of stationSeeds) {
+    const id = randomUUID();
+    state.pollingStations.set(id, { id, code, name, communeName, isActive: true });
   }
 
   return state;
@@ -310,6 +331,68 @@ export function updateElectionStatus(
   return { ok: true };
 }
 
+export function listPollingStations(): DemoPollingStation[] {
+  return Array.from(getState().pollingStations.values());
+}
+
+export type CreatePollingStationResult =
+  | { ok: true; station: DemoPollingStation }
+  | { ok: false; reason: "duplicate_code" };
+
+export function createPollingStation(input: {
+  code: string;
+  name: string;
+  communeName: string;
+}): CreatePollingStationResult {
+  const state = getState();
+  const codeExists = Array.from(state.pollingStations.values()).some((s) => s.code === input.code);
+  if (codeExists) return { ok: false, reason: "duplicate_code" };
+
+  const station: DemoPollingStation = {
+    id: randomUUID(),
+    code: input.code,
+    name: input.name,
+    communeName: input.communeName,
+    isActive: true,
+  };
+  state.pollingStations.set(station.id, station);
+  return { ok: true, station };
+}
+
+export function listPollingStationsForElection(electionId: string): DemoPollingStation[] {
+  const state = getState();
+  const ids = state.electionPollingStations.get(electionId);
+  if (!ids) return [];
+  return Array.from(ids)
+    .map((id) => state.pollingStations.get(id))
+    .filter((s): s is DemoPollingStation => Boolean(s));
+}
+
+export function attachPollingStationToElection(electionId: string, pollingStationId: string): boolean {
+  const state = getState();
+  if (!state.elections.has(electionId) || !state.pollingStations.has(pollingStationId)) return false;
+  const current = state.electionPollingStations.get(electionId) ?? new Set<string>();
+  current.add(pollingStationId);
+  state.electionPollingStations.set(electionId, current);
+  return true;
+}
+
+/**
+ * Assignation deterministe (stable pour un meme electeur/scrutin) d'un
+ * bureau parmi ceux attaches au scrutin — permet de tester des resultats
+ * et une reconciliation par bureau (doc 01 §4.4) sans registre electoral
+ * reel. Retourne null si aucun bureau n'est attache au scrutin.
+ */
+export function pickPollingStationForVoter(electionId: string, voterId: string): string | null {
+  const stations = listPollingStationsForElection(electionId);
+  if (stations.length === 0) return null;
+  let hash = 0;
+  for (let i = 0; i < voterId.length; i++) {
+    hash = (hash * 31 + voterId.charCodeAt(i)) % stations.length;
+  }
+  return stations[Math.abs(hash) % stations.length]!.id;
+}
+
 export function addCandidate(
   electionId: string,
   input: { displayName: string; partyName: string | null }
@@ -393,6 +476,9 @@ export const demoParticipationRepository: ParticipationRepository = {
   },
   async countForElection(electionId) {
     return getState().participations.filter((p) => p.electionId === electionId).length;
+  },
+  async listForElection(electionId) {
+    return getState().participations.filter((p) => p.electionId === electionId);
   },
 };
 

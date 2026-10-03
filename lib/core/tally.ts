@@ -14,15 +14,17 @@ import type {
 import type { BallotType, EncryptedBallot, TallyRecord } from "./types";
 
 interface AggregatedCount {
+  pollingStationId: string | null;
   candidateId: string | null;
   ballotType: BallotType;
   voteCount: number;
 }
 
 /**
- * Dechiffre chaque bulletin en memoire et agrege les compteurs. Jamais
- * expose cote client : ce module ne s'execute que dans un service serveur
- * dedie (doc 02 §6, doc 05 §4).
+ * Dechiffre chaque bulletin en memoire et agrege les compteurs par bureau
+ * de vote puis par candidat/type (doc 01 §4.4 : "resultats par bureau de
+ * vote"). Jamais expose cote client : ce module ne s'execute que dans un
+ * service serveur dedie (doc 02 §6, doc 05 §4).
  */
 export function aggregateBallots(
   ballots: EncryptedBallot[],
@@ -32,12 +34,17 @@ export function aggregateBallots(
 
   for (const ballot of ballots) {
     const choice = decryptBallotPayload(ballot, masterKeyProvider, ballot.encryptionKeyId);
-    const bucketKey = choice.candidateId ?? `__${choice.type}`;
+    const bucketKey = `${ballot.pollingStationId ?? "__none__"}:${choice.candidateId ?? `__${choice.type}`}`;
     const existing = counts.get(bucketKey);
     if (existing) {
       existing.voteCount += 1;
     } else {
-      counts.set(bucketKey, { candidateId: choice.candidateId, ballotType: choice.type, voteCount: 1 });
+      counts.set(bucketKey, {
+        pollingStationId: ballot.pollingStationId,
+        candidateId: choice.candidateId,
+        ballotType: choice.type,
+        voteCount: 1,
+      });
     }
   }
 
@@ -77,21 +84,29 @@ export function reconcile(
   });
 }
 
+function countBy<T>(items: T[], keyOf: (item: T) => string | null): Map<string | null, number> {
+  const counts = new Map<string | null, number>();
+  for (const item of items) {
+    const key = keyOf(item);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
 export type RunTallyResult =
   | { ok: false; reason: "already_tallied" }
   | {
       ok: true;
       records: TallyRecord[];
-      participationCount: number;
-      ballotCount: number;
-      consistent: boolean;
+      reconciliation: ReconciliationResult[];
     };
 
 /**
  * Orchestration complete du depouillement (doc 05 §4) : agrege les
- * bulletins, persiste les totaux chaines (doc 06 §3), compare au nombre
- * de participations, et ouvre un incident en cas d'ecart — jamais de
- * correction automatique silencieuse (doc 01 §4.4).
+ * bulletins par bureau, persiste les totaux chaines (doc 06 §3), compare
+ * au nombre de participations bureau par bureau, et ouvre un incident
+ * par bureau en ecart — jamais de correction automatique silencieuse
+ * (doc 01 §4.4).
  *
  * Idempotent par construction : si un depouillement existe deja pour ce
  * scrutin, il n'est pas recalcule (il faudrait une procedure de
@@ -117,15 +132,17 @@ export async function runTally(
   const ballots = await deps.ballotRepo.listForElection(electionId);
   const aggregated = aggregateBallots(ballots, deps.masterKeyProvider);
 
-  const participationCount = await deps.participationRepo.countForElection(electionId);
-  const ballotCount = ballots.length;
-  const consistent = participationCount === ballotCount;
+  const participations = await deps.participationRepo.listForElection(electionId);
+  const participationCounts = countBy(participations, (p) => p.pollingStationId);
+  const ballotCounts = countBy(ballots, (b) => b.pollingStationId);
+  const reconciliation = reconcile(participationCounts, ballotCounts);
 
   let prevHash = await deps.tallyRepo.getLastIntegrityHash(electionId);
   const now = deps.clock.now();
   const records: TallyRecord[] = aggregated.map((entry) => {
     const content = {
       electionId,
+      pollingStationId: entry.pollingStationId,
       candidateId: entry.candidateId,
       ballotType: entry.ballotType,
       voteCount: entry.voteCount,
@@ -134,7 +151,7 @@ export async function runTally(
     const record: TallyRecord = {
       id: randomUUID(),
       electionId,
-      pollingStationId: null,
+      pollingStationId: entry.pollingStationId,
       candidateId: entry.candidateId,
       ballotType: entry.ballotType,
       voteCount: entry.voteCount,
@@ -148,16 +165,21 @@ export async function runTally(
 
   await deps.tallyRepo.replaceForElection(electionId, records);
 
-  if (!consistent) {
+  for (const stationResult of reconciliation) {
+    if (stationResult.consistent) continue;
     await deps.incidentRepo.report({
       id: randomUUID(),
       electionId,
       category: "reconciliation_mismatch",
-      description: `Écart détecté : ${participationCount} participation(s) enregistrée(s) contre ${ballotCount} bulletin(s) décompté(s).`,
+      description:
+        (stationResult.pollingStationId ? `Bureau ${stationResult.pollingStationId} — ` : "") +
+        `Écart détecté : ${stationResult.participationCount} participation(s) enregistrée(s) contre ${stationResult.ballotCount} bulletin(s) décompté(s).`,
       status: "open",
       openedAt: now,
     });
   }
+
+  const consistent = reconciliation.every((r) => r.consistent);
 
   await appendAuditEvent(
     {
@@ -165,10 +187,13 @@ export async function runTally(
       actionCode: "tally.completed",
       targetType: "election",
       targetId: electionId,
-      metadata: { participationCount, ballotCount, consistent },
+      metadata: {
+        stationCount: reconciliation.length,
+        consistent,
+      },
     },
     deps
   );
 
-  return { ok: true, records, participationCount, ballotCount, consistent };
+  return { ok: true, records, reconciliation };
 }

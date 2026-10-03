@@ -25,11 +25,16 @@ export default async function AdminDashboardPage() {
     <main className="max-w-3xl mx-auto px-4 py-10 flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-ci-dark">Administration — E-VOTE CI</h1>
-        <form action={adminLogoutAction}>
-          <button type="submit" className="text-sm text-ci-gray underline">
-            Déconnexion
-          </button>
-        </form>
+        <div className="flex items-center gap-4">
+          <Link href="/admin/bureaux" className="text-sm text-ci-green font-semibold">
+            Bureaux de vote
+          </Link>
+          <form action={adminLogoutAction}>
+            <button type="submit" className="text-sm text-ci-gray underline">
+              Déconnexion
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">

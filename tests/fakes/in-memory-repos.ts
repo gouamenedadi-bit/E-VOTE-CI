@@ -117,6 +117,9 @@ export class InMemoryParticipationRepository implements ParticipationRepository 
   async countForElection(electionId: string): Promise<number> {
     return this.records.filter((r) => r.electionId === electionId).length;
   }
+  async listForElection(electionId: string): Promise<ParticipationRecord[]> {
+    return this.records.filter((r) => r.electionId === electionId);
+  }
 }
 
 export class InMemoryBallotRepository implements BallotRepository {

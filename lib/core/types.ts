@@ -31,6 +31,7 @@ export type BallotType = "valid" | "blank" | "null";
 export interface EncryptedBallot {
   id: string;
   electionId: string;
+  pollingStationId: string | null;
   ciphertext: Buffer;
   iv: Buffer;
   authTag: Buffer;

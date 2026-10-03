@@ -153,6 +153,21 @@ export class SupabaseParticipationRepository implements ParticipationRepository 
     if (error) throw error;
     return count ?? 0;
   }
+
+  async listForElection(electionId: string): Promise<ParticipationRecord[]> {
+    const { data, error } = await this.client
+      .from("participation_records")
+      .select("*")
+      .eq("election_id", electionId);
+    if (error) throw error;
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      electionId: row.election_id,
+      pollingStationId: row.polling_station_id,
+      credentialId: row.credential_id,
+      recordedAt: new Date(row.recorded_at),
+    }));
+  }
 }
 
 export class SupabaseBallotRepository implements BallotRepository {
@@ -175,6 +190,7 @@ export class SupabaseBallotRepository implements BallotRepository {
     const { error } = await this.client.from("encrypted_ballots").insert({
       id: ballot.id,
       election_id: ballot.electionId,
+      polling_station_id: ballot.pollingStationId,
       ciphertext: ballot.ciphertext,
       iv: ballot.iv,
       auth_tag: ballot.authTag,
@@ -199,6 +215,7 @@ export class SupabaseBallotRepository implements BallotRepository {
     return (data ?? []).map((row) => ({
       id: row.id,
       electionId: row.election_id,
+      pollingStationId: row.polling_station_id,
       ciphertext: Buffer.from(row.ciphertext),
       iv: Buffer.from(row.iv),
       authTag: Buffer.from(row.auth_tag),

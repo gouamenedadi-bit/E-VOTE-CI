@@ -61,6 +61,27 @@ export default async function DepouillementPage({
             )}
           </div>
 
+          {summary.stations.length > 1 && (
+            <div>
+              <h2 className="font-semibold text-ci-dark mb-2">Contrôle par bureau</h2>
+              <ul className="flex flex-col gap-2">
+                {summary.stations.map((s) => (
+                  <li
+                    key={s.pollingStationId ?? "none"}
+                    className={`border rounded-md p-3 flex items-center justify-between ${
+                      s.consistent ? "border-gray-200" : "border-ci-orange bg-orange-50"
+                    }`}
+                  >
+                    <span>{s.pollingStationLabel}</span>
+                    <span className="text-sm">
+                      {s.consistent ? "✓" : "⚠"} {s.participationCount} / {s.ballotCount}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <ul className="flex flex-col gap-2">
             {summary.records.map((r, i) => (
               <li
