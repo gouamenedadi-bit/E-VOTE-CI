@@ -11,7 +11,14 @@ import { createHmac, randomBytes } from "crypto";
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const STEP_SECONDS = 30;
 const DIGITS = 6;
-const WINDOW = 1; // tolere +/- 1 pas (30s) pour le decalage d'horloge
+// Tolere +/- 4 pas (120s) : large pour un second facteur TOTP classique,
+// mais ce prototype affiche le code directement sur l'ecran de connexion
+// (doc 04 — mode demonstration) pour qu'un humain le recopie a la main
+// dans 3 champs ; une fenetre de 30s serait expiree avant la fin de la
+// saisie. Un usage reel (code recu via une application d'authentification
+// separee, pas affiche sur la meme page) justifierait de revenir a une
+// fenetre standard de +/- 1 pas.
+const WINDOW = 4;
 
 export function generateTotpSecret(): string {
   return base32Encode(randomBytes(20));

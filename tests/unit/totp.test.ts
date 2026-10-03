@@ -55,14 +55,14 @@ describe("computeTotp / verifyTotp", () => {
     expect(verifyTotp(secret, wrong)).toBe(false);
   });
 
-  it("tolere un decalage d'une periode (30s) mais pas deux", () => {
+  it("tolere un decalage de 4 periodes (120s, pour la saisie manuelle en mode demo) mais pas cinq", () => {
     const secret = generateTotpSecret();
     const now = Date.UTC(2026, 0, 1, 0, 0, 0);
     const token = computeTotp(secret, now);
 
-    expect(verifyTotp(secret, token, now + 30_000)).toBe(true);
-    expect(verifyTotp(secret, token, now - 30_000)).toBe(true);
-    expect(verifyTotp(secret, token, now + 90_000)).toBe(false);
+    expect(verifyTotp(secret, token, now + 120_000)).toBe(true);
+    expect(verifyTotp(secret, token, now - 120_000)).toBe(true);
+    expect(verifyTotp(secret, token, now + 150_000)).toBe(false);
   });
 
   it("deux secrets differents produisent des codes differents (sauf collision improbable)", () => {
