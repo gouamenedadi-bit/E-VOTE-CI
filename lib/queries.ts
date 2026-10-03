@@ -45,68 +45,153 @@ export interface ElectionTypeSummary {
   name: string;
 }
 
+export interface RegionSummary {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface DepartmentSummary {
+  id: string;
+  regionId: string;
+  code: string;
+  name: string;
+}
+
+export interface CommuneSummary {
+  id: string;
+  departmentId: string;
+  code: string;
+  name: string;
+}
+
+export async function listRegions(): Promise<RegionSummary[]> {
+  if (!isSupabaseConfigured()) {
+    return demo.listRegions();
+  }
+  const client = getServiceRoleClient();
+  const { data, error } = await client.from("regions").select("id, code, name").order("name");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function listDepartments(regionId?: string): Promise<DepartmentSummary[]> {
+  if (!isSupabaseConfigured()) {
+    return demo.listDepartments(regionId).map((d) => ({ id: d.id, regionId: d.regionId, code: d.code, name: d.name }));
+  }
+  const client = getServiceRoleClient();
+  let query = client.from("departments").select("id, region_id, code, name").order("name");
+  if (regionId) query = query.eq("region_id", regionId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map((d) => ({ id: d.id, regionId: d.region_id, code: d.code, name: d.name }));
+}
+
+export async function listCommunes(departmentId?: string): Promise<CommuneSummary[]> {
+  if (!isSupabaseConfigured()) {
+    return demo.listCommunes(departmentId).map((c) => ({ id: c.id, departmentId: c.departmentId, code: c.code, name: c.name }));
+  }
+  const client = getServiceRoleClient();
+  let query = client.from("communes").select("id, department_id, code, name").order("name");
+  if (departmentId) query = query.eq("department_id", departmentId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map((c) => ({ id: c.id, departmentId: c.department_id, code: c.code, name: c.name }));
+}
+
 export interface PollingStationSummary {
   id: string;
   code: string;
   name: string;
+  communeId: string;
   communeName: string;
+  departmentName: string;
+  regionName: string;
   isActive: boolean;
 }
 
+function mapSupabasePollingStationRow(row: Record<string, unknown>): PollingStationSummary {
+  const commune = row.communes as unknown as
+    | { name: string; departments: { name: string; regions: { name: string } | { name: string }[] } | { name: string; regions: { name: string } | { name: string }[] }[] }
+    | { name: string; departments: unknown }[]
+    | null;
+  const communeRow = Array.isArray(commune) ? commune[0] : commune;
+  const department = communeRow?.departments as unknown as
+    | { name: string; regions: { name: string } | { name: string }[] }
+    | { name: string; regions: { name: string } | { name: string }[] }[]
+    | null;
+  const departmentRow = Array.isArray(department) ? department[0] : department;
+  const region = departmentRow?.regions as unknown as { name: string } | { name: string }[] | null;
+  const regionRow = Array.isArray(region) ? region[0] : region;
+
+  return {
+    id: row.id as string,
+    code: row.code as string,
+    name: row.name as string,
+    communeId: row.commune_id as string,
+    communeName: communeRow?.name ?? "",
+    departmentName: departmentRow?.name ?? "",
+    regionName: regionRow?.name ?? "",
+    isActive: row.is_active as boolean,
+  };
+}
+
+function mapDemoPollingStation(s: {
+  id: string;
+  code: string;
+  name: string;
+  communeId: string;
+  isActive: boolean;
+}): PollingStationSummary {
+  const path = demo.resolveCommunePath(s.communeId);
+  return {
+    id: s.id,
+    code: s.code,
+    name: s.name,
+    communeId: s.communeId,
+    communeName: path?.communeName ?? "",
+    departmentName: path?.departmentName ?? "",
+    regionName: path?.regionName ?? "",
+    isActive: s.isActive,
+  };
+}
+
+const POLLING_STATION_SELECT =
+  "id, code, name, commune_id, is_active, communes(name, departments(name, regions(name)))";
+
 export async function listPollingStations(): Promise<PollingStationSummary[]> {
   if (!isSupabaseConfigured()) {
-    return demo.listPollingStations().map((s) => ({
-      id: s.id,
-      code: s.code,
-      name: s.name,
-      communeName: s.communeName,
-      isActive: s.isActive,
-    }));
+    return demo.listPollingStations().map(mapDemoPollingStation);
   }
 
   const client = getServiceRoleClient();
   const { data, error } = await client
     .from("polling_stations")
-    .select("id, code, name, commune_name, is_active")
+    .select(POLLING_STATION_SELECT)
     .order("code", { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    code: row.code,
-    name: row.name,
-    communeName: row.commune_name ?? "",
-    isActive: row.is_active,
-  }));
+  return (data ?? []).map((row) => mapSupabasePollingStationRow(row as unknown as Record<string, unknown>));
 }
 
 export async function listPollingStationsForElection(electionId: string): Promise<PollingStationSummary[]> {
   if (!isSupabaseConfigured()) {
-    return demo.listPollingStationsForElection(electionId).map((s) => ({
-      id: s.id,
-      code: s.code,
-      name: s.name,
-      communeName: s.communeName,
-      isActive: s.isActive,
-    }));
+    return demo.listPollingStationsForElection(electionId).map(mapDemoPollingStation);
   }
 
   const client = getServiceRoleClient();
   const { data, error } = await client
     .from("election_polling_stations")
-    .select("polling_stations(id, code, name, commune_name, is_active)")
+    .select(`polling_stations(${POLLING_STATION_SELECT})`)
     .eq("election_id", electionId);
   if (error) throw error;
 
   return (data ?? [])
     .map((row) => {
-      const station = row.polling_stations as unknown as
-        | { id: string; code: string; name: string; commune_name: string | null; is_active: boolean }
-        | { id: string; code: string; name: string; commune_name: string | null; is_active: boolean }[]
-        | null;
+      const station = row.polling_stations as unknown as Record<string, unknown> | Record<string, unknown>[] | null;
       return Array.isArray(station) ? station[0] : station;
     })
-    .filter((s): s is NonNullable<typeof s> => Boolean(s))
-    .map((s) => ({ id: s.id, code: s.code, name: s.name, communeName: s.commune_name ?? "", isActive: s.is_active }));
+    .filter((s): s is Record<string, unknown> => Boolean(s))
+    .map(mapSupabasePollingStationRow);
 }
 
 export async function listElectionsForStation(pollingStationId: string): Promise<ElectionSummary[]> {

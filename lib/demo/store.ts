@@ -69,11 +69,31 @@ export interface DemoVoter {
   fullName: string;
 }
 
+export interface DemoRegion {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface DemoDepartment {
+  id: string;
+  regionId: string;
+  code: string;
+  name: string;
+}
+
+export interface DemoCommune {
+  id: string;
+  departmentId: string;
+  code: string;
+  name: string;
+}
+
 export interface DemoPollingStation {
   id: string;
   code: string;
   name: string;
-  communeName: string;
+  communeId: string;
   isActive: boolean;
 }
 
@@ -94,6 +114,9 @@ interface DemoStoreState {
   adminAccountsByEmail: Map<string, string>;
   elections: Map<string, DemoElection>;
   candidates: Map<string, DemoCandidate[]>;
+  regions: Map<string, DemoRegion>;
+  departments: Map<string, DemoDepartment>;
+  communes: Map<string, DemoCommune>;
   pollingStations: Map<string, DemoPollingStation>;
   electionPollingStations: Map<string, Set<string>>;
   eligibility: Map<string, VoterEligibility>;
@@ -119,6 +142,52 @@ const ELECTION_TYPE_SEED: Array<[string, string, string]> = [
   ["senatoriales", "Sénatoriales", "senatoriales-type"],
 ];
 
+/**
+ * Geographie reelle de la Cote d'Ivoire (31 regions + les districts
+ * autonomes d'Abidjan et Yamoussoukro, traites ici comme des regions —
+ * doc 03 ne modelise pas de niveau "district"). Seed REPRESENTATIF, pas
+ * exhaustif : un seul departement et une seule commune (le chef-lieu)
+ * par region, alors que le pays compte reellement 111 departements et
+ * de nombreuses communes par region. A completer depuis une source
+ * officielle (INS) avant tout usage au-dela du prototype.
+ *
+ * [code region, nom region, nom du chef-lieu (departement = commune)]
+ */
+const REGION_SEED: Array<[string, string, string]> = [
+  ["ABJ", "Abidjan", "Abidjan"],
+  ["AGT", "Agnéby-Tiassa", "Agboville"],
+  ["BAF", "Bafing", "Touba"],
+  ["BAG", "Bagoué", "Boundiali"],
+  ["BEL", "Bélier", "Toumodi"],
+  ["BER", "Béré", "Mankono"],
+  ["BNK", "Bounkani", "Bouna"],
+  ["CAV", "Cavally", "Guiglo"],
+  ["FOL", "Folon", "Minignan"],
+  ["GBK", "Gbêkê", "Bouaké"],
+  ["GBO", "Gbôklé", "Sassandra"],
+  ["GOH", "Gôh", "Gagnoa"],
+  ["GON", "Gontougo", "Bondoukou"],
+  ["GRP", "Grands-Ponts", "Dabou"],
+  ["GUE", "Guémon", "Duékoué"],
+  ["HAM", "Hambol", "Katiola"],
+  ["HSA", "Haut-Sassandra", "Daloa"],
+  ["IFF", "Iffou", "Daoukro"],
+  ["IND", "Indénié-Djuablin", "Abengourou"],
+  ["KAB", "Kabadougou", "Odienné"],
+  ["MEE", "Mé", "Adzopé"],
+  ["LOH", "Lôh-Djiboua", "Divo"],
+  ["MAR", "Marahoué", "Bouaflé"],
+  ["MOR", "Moronou", "Bongouanou"],
+  ["NAW", "Nawa", "Soubré"],
+  ["NZI", "N'Zi", "Dimbokro"],
+  ["POR", "Poro", "Korhogo"],
+  ["SPE", "San-Pédro", "San-Pédro"],
+  ["SUC", "Sud-Comoé", "Aboisso"],
+  ["TCH", "Tchologo", "Ferkessédougou"],
+  ["WOR", "Worodougou", "Séguéla"],
+  ["YAM", "Yamoussoukro", "Yamoussoukro"],
+];
+
 function seed(): DemoStoreState {
   const state: DemoStoreState = {
     electionTypes: new Map(),
@@ -128,6 +197,9 @@ function seed(): DemoStoreState {
     adminAccountsByEmail: new Map(),
     elections: new Map(),
     candidates: new Map(),
+    regions: new Map(),
+    departments: new Map(),
+    communes: new Map(),
     pollingStations: new Map(),
     electionPollingStations: new Map(),
     eligibility: new Map(),
@@ -143,6 +215,29 @@ function seed(): DemoStoreState {
 
   for (const [code, name, id] of ELECTION_TYPE_SEED) {
     state.electionTypes.set(id, { id, code, name, allowsBlankBallot: true });
+  }
+
+  const communeIdByRegionCode = new Map<string, string>();
+  for (const [regionCode, regionName, chiefTown] of REGION_SEED) {
+    const regionId = randomUUID();
+    state.regions.set(regionId, { id: regionId, code: regionCode, name: regionName });
+
+    const departmentId = randomUUID();
+    state.departments.set(departmentId, {
+      id: departmentId,
+      regionId,
+      code: `${regionCode}-DEP`,
+      name: chiefTown,
+    });
+
+    const communeId = randomUUID();
+    state.communes.set(communeId, {
+      id: communeId,
+      departmentId,
+      code: `${regionCode}-COM`,
+      name: chiefTown,
+    });
+    communeIdByRegionCode.set(regionCode, communeId);
   }
 
   const electionId = "demo-election-presidentielle";
@@ -179,14 +274,15 @@ function seed(): DemoStoreState {
     });
   }
 
+  const abidjanCommuneId = communeIdByRegionCode.get("ABJ")!;
   const stationSeeds: Array<[string, string, string]> = [
-    ["BV-001", "École A", "Abidjan"],
-    ["BV-002", "École B", "Abidjan"],
+    ["BV-001", "École A", abidjanCommuneId],
+    ["BV-002", "École B", abidjanCommuneId],
   ];
   const stationIdByCode = new Map<string, string>();
-  for (const [code, name, communeName] of stationSeeds) {
+  for (const [code, name, communeId] of stationSeeds) {
     const id = randomUUID();
-    state.pollingStations.set(id, { id, code, name, communeName, isActive: true });
+    state.pollingStations.set(id, { id, code, name, communeId, isActive: true });
     stationIdByCode.set(code, id);
   }
 
@@ -408,28 +504,74 @@ export function updateElectionStatus(
   return { ok: true };
 }
 
+export function listRegions(): DemoRegion[] {
+  return Array.from(getState().regions.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function listDepartments(regionId?: string): DemoDepartment[] {
+  const all = Array.from(getState().departments.values());
+  return (regionId ? all.filter((d) => d.regionId === regionId) : all).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+}
+
+export function listCommunes(departmentId?: string): DemoCommune[] {
+  const all = Array.from(getState().communes.values());
+  return (departmentId ? all.filter((c) => c.departmentId === departmentId) : all).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+}
+
+export function getCommune(communeId: string): DemoCommune | null {
+  return getState().communes.get(communeId) ?? null;
+}
+
+export function getDepartment(departmentId: string): DemoDepartment | null {
+  return getState().departments.get(departmentId) ?? null;
+}
+
+export function getRegion(regionId: string): DemoRegion | null {
+  return getState().regions.get(regionId) ?? null;
+}
+
+/** Chemin geographique complet d'une commune (region > departement > commune). */
+export function resolveCommunePath(
+  communeId: string
+): { regionName: string; departmentName: string; communeName: string } | null {
+  const commune = getCommune(communeId);
+  if (!commune) return null;
+  const department = getDepartment(commune.departmentId);
+  const region = department ? getRegion(department.regionId) : null;
+  return {
+    regionName: region?.name ?? "",
+    departmentName: department?.name ?? "",
+    communeName: commune.name,
+  };
+}
+
 export function listPollingStations(): DemoPollingStation[] {
   return Array.from(getState().pollingStations.values());
 }
 
 export type CreatePollingStationResult =
   | { ok: true; station: DemoPollingStation }
-  | { ok: false; reason: "duplicate_code" };
+  | { ok: false; reason: "duplicate_code" | "invalid_commune" };
 
 export function createPollingStation(input: {
   code: string;
   name: string;
-  communeName: string;
+  communeId: string;
 }): CreatePollingStationResult {
   const state = getState();
   const codeExists = Array.from(state.pollingStations.values()).some((s) => s.code === input.code);
   if (codeExists) return { ok: false, reason: "duplicate_code" };
+  if (!state.communes.has(input.communeId)) return { ok: false, reason: "invalid_commune" };
 
   const station: DemoPollingStation = {
     id: randomUUID(),
     code: input.code,
     name: input.name,
-    communeName: input.communeName,
+    communeId: input.communeId,
     isActive: true,
   };
   state.pollingStations.set(station.id, station);

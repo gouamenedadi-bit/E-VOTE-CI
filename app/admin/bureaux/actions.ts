@@ -12,7 +12,7 @@ import * as demo from "@/lib/demo/store";
 const createStationSchema = z.object({
   code: z.string().trim().min(2).max(20),
   name: z.string().trim().min(2).max(200),
-  communeName: z.string().trim().min(2).max(200),
+  communeId: z.string().trim().min(1),
 });
 
 export async function createPollingStationAction(formData: FormData): Promise<void> {
@@ -24,22 +24,22 @@ export async function createPollingStationAction(formData: FormData): Promise<vo
   const parsed = createStationSchema.safeParse({
     code: formData.get("code"),
     name: formData.get("name"),
-    communeName: formData.get("communeName"),
+    communeId: formData.get("communeId"),
   });
   if (!parsed.success) redirect("/admin/bureaux?erreur=1");
 
-  const { code, name, communeName } = parsed.data;
+  const { code, name, communeId } = parsed.data;
   let stationId: string | null = null;
 
   if (!isSupabaseConfigured()) {
-    const result = demo.createPollingStation({ code, name, communeName });
-    if (!result.ok) redirect("/admin/bureaux?erreur=code");
+    const result = demo.createPollingStation({ code, name, communeId });
+    if (!result.ok) redirect(`/admin/bureaux?erreur=${result.reason === "duplicate_code" ? "code" : "commune"}`);
     stationId = result.station.id;
   } else {
     const client = getServiceRoleClient();
     const { data, error } = await client
       .from("polling_stations")
-      .insert({ code, name, commune_name: communeName, is_active: true })
+      .insert({ code, name, commune_id: communeId, is_active: true })
       .select("id")
       .single();
     if (error) {
