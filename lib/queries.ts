@@ -268,6 +268,7 @@ export interface IncidentSummary {
   description: string;
   status: "open" | "investigating" | "resolved";
   openedAt: Date;
+  resolvedAt: Date | null;
 }
 
 export async function lookupVoterByCredentials(
@@ -539,7 +540,22 @@ function buildTallySummary(
   nameById: Map<string, string>,
   stationNameById: Map<string, string>
 ): TallySummary {
-  const records = rawRecords.map((r) => ({
+  // Les tally_records sont stockes par bureau (doc 01 §4.4 : "resultats
+  // agreges par bureau... et au niveau national") ; un meme candidat a
+  // donc une ligne par bureau. La vue nationale doit les sommer, sinon
+  // un candidat apparait plusieurs fois avec des totaux partiels.
+  const totalsByKey = new Map<string, { candidateId: string | null; ballotType: typeof rawRecords[number]["ballotType"]; voteCount: number }>();
+  for (const r of rawRecords) {
+    const key = r.candidateId ?? `__${r.ballotType}`;
+    const existing = totalsByKey.get(key);
+    if (existing) {
+      existing.voteCount += r.voteCount;
+    } else {
+      totalsByKey.set(key, { candidateId: r.candidateId, ballotType: r.ballotType, voteCount: r.voteCount });
+    }
+  }
+
+  const records = Array.from(totalsByKey.values()).map((r) => ({
     candidateId: r.candidateId,
     candidateName: r.candidateId
       ? nameById.get(r.candidateId) ?? "Candidat inconnu"
@@ -772,6 +788,48 @@ export async function getRoleAccountCounts(): Promise<Record<string, number>> {
   return counts;
 }
 
+export interface DashboardStats {
+  eligibleVoters: number;
+  activePollingStations: number;
+  totalParticipations: number;
+}
+
+/** Statistiques globales du tableau de bord admin (doc 01 §4.5/§12). */
+export async function getDashboardStats(): Promise<DashboardStats> {
+  if (!isSupabaseConfigured()) {
+    const stations = await listPollingStations();
+    return {
+      eligibleVoters: demo.countVoters(),
+      activePollingStations: stations.filter((s) => s.isActive).length,
+      totalParticipations: demo.countTotalParticipations(),
+    };
+  }
+
+  const client = getServiceRoleClient();
+
+  const { count: eligibleVoters, error: votersError } = await client
+    .from("demo_voters")
+    .select("id", { count: "exact", head: true });
+  if (votersError) throw votersError;
+
+  const { count: activePollingStations, error: stationsError } = await client
+    .from("polling_stations")
+    .select("id", { count: "exact", head: true })
+    .eq("is_active", true);
+  if (stationsError) throw stationsError;
+
+  const { count: totalParticipations, error: participationsError } = await client
+    .from("participation_records")
+    .select("id", { count: "exact", head: true });
+  if (participationsError) throw participationsError;
+
+  return {
+    eligibleVoters: eligibleVoters ?? 0,
+    activePollingStations: activePollingStations ?? 0,
+    totalParticipations: totalParticipations ?? 0,
+  };
+}
+
 export async function listIncidents(): Promise<IncidentSummary[]> {
   if (!isSupabaseConfigured()) {
     return demo.listIncidents().map((i) => ({
@@ -781,6 +839,7 @@ export async function listIncidents(): Promise<IncidentSummary[]> {
       description: i.description,
       status: i.status,
       openedAt: i.openedAt,
+      resolvedAt: i.resolvedAt,
     }));
   }
 
@@ -798,7 +857,28 @@ export async function listIncidents(): Promise<IncidentSummary[]> {
     description: row.description,
     status: row.status,
     openedAt: new Date(row.opened_at),
+    resolvedAt: row.resolved_at ? new Date(row.resolved_at) : null,
   }));
+}
+
+export type UpdateIncidentStatusResult = { ok: true } | { ok: false; reason: "not_found" };
+
+export async function updateIncidentStatus(
+  incidentId: string,
+  status: "open" | "investigating" | "resolved"
+): Promise<UpdateIncidentStatusResult> {
+  if (!isSupabaseConfigured()) {
+    const updated = demo.updateIncidentStatus(incidentId, status);
+    return updated ? { ok: true } : { ok: false, reason: "not_found" };
+  }
+
+  const client = getServiceRoleClient();
+  const { error } = await client
+    .from("incident_reports")
+    .update({ status, resolved_at: status === "resolved" ? new Date().toISOString() : null })
+    .eq("id", incidentId);
+  if (error) throw error;
+  return { ok: true };
 }
 
 export async function hasParticipated(voterId: string, electionId: string): Promise<boolean> {

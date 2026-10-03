@@ -549,6 +549,14 @@ export function resolveCommunePath(
   };
 }
 
+export function countVoters(): number {
+  return getState().voters.size;
+}
+
+export function countTotalParticipations(): number {
+  return getState().participations.length;
+}
+
 export function listPollingStations(): DemoPollingStation[] {
   return Array.from(getState().pollingStations.values());
 }
@@ -769,6 +777,18 @@ export const demoIncidentRepository: IncidentRepository = {
 
 export function listIncidents(): IncidentReport[] {
   return [...getState().incidents];
+}
+
+export function updateIncidentStatus(
+  incidentId: string,
+  status: IncidentReport["status"]
+): IncidentReport | null {
+  const state = getState();
+  const incident = state.incidents.find((i) => i.id === incidentId);
+  if (!incident) return null;
+  incident.status = status;
+  incident.resolvedAt = status === "resolved" ? new Date() : null;
+  return incident;
 }
 
 export const demoResultPublicationRepository: ResultPublicationRepository = {

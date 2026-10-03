@@ -88,6 +88,10 @@ async function ElectionResult({
       <p className="text-xs text-ci-gray">
         Pourcentages calculés sur {totalAll} bulletin(s) ({totalValid} valide(s)).
       </p>
+
+      <a href={`/resultats/${electionId}/export`} className="text-ci-green font-semibold text-sm">
+        Télécharger le procès-verbal (CSV) ↓
+      </a>
     </section>
   );
 }

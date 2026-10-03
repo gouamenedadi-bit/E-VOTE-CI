@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/admin-session";
 import { canRunTally } from "@/lib/core/authorization";
 import { getElection, getTallySummary } from "@/lib/queries";
-import { publishResultsAction, runTallyAction } from "./actions";
+import { publishResultsAction, runTallyAction, verifyResultsAction } from "./actions";
 
 export default async function DepouillementPage({
   params,
@@ -100,7 +100,7 @@ export default async function DepouillementPage({
           </ul>
 
           <div className="flex items-center gap-4">
-            {summary.publication?.status === "published" ? (
+            {summary.publication?.status === "published" && (
               <p className="text-ci-green font-semibold">
                 ✓ Résultats publiés le{" "}
                 {summary.publication.publishedAt?.toLocaleString("fr-FR", {
@@ -108,9 +108,11 @@ export default async function DepouillementPage({
                   timeStyle: "short",
                 })}
               </p>
-            ) : (
+            )}
+            {summary.publication?.status === "verified" && (
               <form action={publishResultsAction}>
                 <input type="hidden" name="electionId" value={electionId} />
+                <p className="text-sm text-ci-gray mb-2">✓ Résultats vérifiés — prêts à publier.</p>
                 <button
                   type="submit"
                   className="min-h-[44px] rounded-md bg-ci-green text-white font-semibold px-5 hover:bg-ci-green/90"
@@ -119,6 +121,23 @@ export default async function DepouillementPage({
                 </button>
               </form>
             )}
+            {(!summary.publication || summary.publication.status === "draft") && (
+              <form action={verifyResultsAction}>
+                <input type="hidden" name="electionId" value={electionId} />
+                <button
+                  type="submit"
+                  className="min-h-[44px] rounded-md border-2 border-ci-dark text-ci-dark font-semibold px-5"
+                >
+                  Vérifier les résultats
+                </button>
+              </form>
+            )}
+            <a
+              href={`/admin/elections/${electionId}/depouillement/export`}
+              className="text-ci-green font-semibold text-sm"
+            >
+              Exporter le PV (CSV) ↓
+            </a>
             <Link href="/resultats" className="text-ci-green font-semibold text-sm">
               Voir la page publique →
             </Link>

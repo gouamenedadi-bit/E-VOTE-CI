@@ -88,4 +88,5 @@ export interface IncidentReport {
   description: string;
   status: "open" | "investigating" | "resolved";
   openedAt: Date;
+  resolvedAt: Date | null;
 }

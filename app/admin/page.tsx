@@ -9,7 +9,7 @@ import {
   isSuperAdmin,
   visibleElectionIds,
 } from "@/lib/core/authorization";
-import { listAllElections, listIncidents } from "@/lib/queries";
+import { getDashboardStats, listAllElections, listIncidents } from "@/lib/queries";
 import { adminLogoutAction } from "./actions";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -38,6 +38,9 @@ export default async function AdminDashboardPage({
 
   const showIncidents = canViewAudit(session.roles);
   const incidents = showIncidents ? await listIncidents() : [];
+  const stats = await getDashboardStats();
+  const participationRate =
+    stats.eligibleVoters > 0 ? ((stats.totalParticipations / stats.eligibleVoters) * 100).toFixed(1) : "0.0";
 
   const counts = {
     draft: elections.filter((e) => e.status === "draft").length,
@@ -97,6 +100,25 @@ export default async function AdminDashboardPage({
         <div className="border border-gray-200 rounded-md p-4 text-center">
           <p className="text-2xl font-bold text-ci-dark">{counts.closed}</p>
           <p className="text-sm text-ci-gray">Clôturés</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="border border-gray-200 rounded-md p-4 text-center">
+          <p className="text-xl font-bold text-ci-dark">{stats.eligibleVoters}</p>
+          <p className="text-xs text-ci-gray">Électeurs éligibles (démo)</p>
+        </div>
+        <div className="border border-gray-200 rounded-md p-4 text-center">
+          <p className="text-xl font-bold text-ci-dark">{stats.totalParticipations}</p>
+          <p className="text-xs text-ci-gray">Participations enregistrées</p>
+        </div>
+        <div className="border border-gray-200 rounded-md p-4 text-center">
+          <p className="text-xl font-bold text-ci-dark">{participationRate} %</p>
+          <p className="text-xs text-ci-gray">Taux de participation</p>
+        </div>
+        <div className="border border-gray-200 rounded-md p-4 text-center">
+          <p className="text-xl font-bold text-ci-dark">{stats.activePollingStations}</p>
+          <p className="text-xs text-ci-gray">Bureaux actifs</p>
         </div>
       </div>
 

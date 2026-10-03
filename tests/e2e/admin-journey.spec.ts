@@ -72,7 +72,9 @@ test("creation, vote, depouillement et publication d'un scrutin", async ({ page 
   await expect(page.getByText(/1 participation/)).toBeVisible();
   await expect(page.getByText("✓ Cohérent")).toBeVisible();
 
-  // 8. Publication
+  // 8. Verification puis publication (workflow a deux niveaux, doc 01 §4.4)
+  await page.click('button:has-text("Vérifier les résultats")');
+  await expect(page.getByText(/Résultats vérifiés/)).toBeVisible();
   await page.click('button:has-text("Publier les résultats")');
   await expect(page.getByText(/Résultats publiés le/)).toBeVisible();
 

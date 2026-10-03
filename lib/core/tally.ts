@@ -176,6 +176,7 @@ export async function runTally(
         `Écart détecté : ${stationResult.participationCount} participation(s) enregistrée(s) contre ${stationResult.ballotCount} bulletin(s) décompté(s).`,
       status: "open",
       openedAt: now,
+      resolvedAt: null,
     });
   }
 

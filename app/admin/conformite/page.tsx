@@ -1,9 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAdminSession } from "@/lib/admin-session";
-import { canViewAudit } from "@/lib/core/authorization";
+import { canManageElection, canViewAudit, isSuperAdmin } from "@/lib/core/authorization";
 import { getAuditChainStatus, getRoleAccountCounts, listIncidents } from "@/lib/queries";
+import { updateIncidentStatusAction } from "./actions";
 import packageJson from "../../../package.json";
+
+const INCIDENT_STATUS_LABELS: Record<string, string> = {
+  open: "Ouvert",
+  investigating: "En cours d'investigation",
+  resolved: "Résolu",
+};
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super administrateur",
@@ -136,6 +143,46 @@ export default async function CompliancePage() {
           chaîne) → qualification dans <code>incident_reports</code> → confinement → communication →
           résolution tracée → retour d&apos;expérience (doc 06 §6).
         </p>
+
+        {incidents.length > 0 && (
+          <ul className="flex flex-col gap-2 mt-4">
+            {incidents.map((incident) => {
+              const canResolve =
+                isSuperAdmin(session.roles) ||
+                (incident.electionId && canManageElection(session.roles, incident.electionId));
+              return (
+                <li key={incident.id} className="border border-gray-200 rounded-md p-3">
+                  <p className="text-sm text-ci-dark">{incident.description}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs text-ci-gray">
+                      {INCIDENT_STATUS_LABELS[incident.status]} ·{" "}
+                      {incident.openedAt.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                    {canResolve && incident.status !== "resolved" && (
+                      <form action={updateIncidentStatusAction} className="flex items-center gap-2">
+                        <input type="hidden" name="incidentId" value={incident.id} />
+                        <select
+                          name="status"
+                          defaultValue={incident.status === "open" ? "investigating" : "resolved"}
+                          className="text-sm rounded-md border border-gray-300 px-2 py-1"
+                        >
+                          <option value="investigating">En cours d&apos;investigation</option>
+                          <option value="resolved">Résolu</option>
+                        </select>
+                        <button
+                          type="submit"
+                          className="text-sm rounded-md border-2 border-ci-dark text-ci-dark font-semibold px-3 py-1"
+                        >
+                          Mettre à jour
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
       <section>
