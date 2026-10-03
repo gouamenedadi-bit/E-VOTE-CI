@@ -553,6 +553,21 @@ export function countVoters(): number {
   return getState().voters.size;
 }
 
+/**
+ * Nombre de couples (electeur, scrutin) eligibles — le vrai denominateur
+ * d'un taux de participation agrege sur plusieurs scrutins. Le nombre
+ * d'electeurs seul (countVoters) sous-compte des que plusieurs scrutins
+ * existent : un meme electeur peut voter dans chacun, ce qui ferait
+ * depasser 100% un taux calcule sur le seul nombre de comptes.
+ */
+export function countEligibilitySlots(): number {
+  let count = 0;
+  for (const e of getState().eligibility.values()) {
+    if (e.isEligible) count += 1;
+  }
+  return count;
+}
+
 export function countTotalParticipations(): number {
   return getState().participations.length;
 }

@@ -9,6 +9,15 @@
   --color-ci-dark: #15202b;
   --color-ci-gray: #4a5568;
   --color-ci-ink: #121417; /* texte principal, quasi-noir */
+
+  /* Echelle de texte relevee : aucun texte lisible sous 15px (doc 01 §6 —
+     lisibilite pour un public age ou peu habitue au numerique). Remplace
+     les tailles par defaut de Tailwind (text-xs=12px, text-sm=14px) pour
+     tout le site d'un coup, plutot que de corriger ecran par ecran. */
+  --text-xs: 0.9375rem; /* 15px au lieu de 12px — seuil minimal demande */
+  --text-xs--line-height: 1.5;
+  --text-sm: 1rem; /* 16px au lieu de 14px */
+  --text-sm--line-height: 1.5;
 }
 
 html {

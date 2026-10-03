@@ -40,7 +40,9 @@ export default async function AdminDashboardPage({
   const incidents = showIncidents ? await listIncidents() : [];
   const stats = await getDashboardStats();
   const participationRate =
-    stats.eligibleVoters > 0 ? ((stats.totalParticipations / stats.eligibleVoters) * 100).toFixed(1) : "0.0";
+    stats.eligibilitySlots > 0
+      ? ((stats.totalParticipations / stats.eligibilitySlots) * 100).toFixed(1)
+      : "0.0";
 
   const counts = {
     draft: elections.filter((e) => e.status === "draft").length,

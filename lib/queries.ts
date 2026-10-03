@@ -792,6 +792,8 @@ export async function getRoleAccountCounts(): Promise<Record<string, number>> {
 
 export interface DashboardStats {
   eligibleVoters: number;
+  /** Couples (electeur, scrutin) eligibles — denominateur du taux de participation. */
+  eligibilitySlots: number;
   activePollingStations: number;
   totalParticipations: number;
 }
@@ -802,6 +804,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const stations = await listPollingStations();
     return {
       eligibleVoters: demo.countVoters(),
+      eligibilitySlots: demo.countEligibilitySlots(),
       activePollingStations: stations.filter((s) => s.isActive).length,
       totalParticipations: demo.countTotalParticipations(),
     };
@@ -813,6 +816,12 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     .from("demo_voters")
     .select("id", { count: "exact", head: true });
   if (votersError) throw votersError;
+
+  const { count: eligibilitySlots, error: eligibilityError } = await client
+    .from("voter_eligibility")
+    .select("id", { count: "exact", head: true })
+    .eq("is_eligible", true);
+  if (eligibilityError) throw eligibilityError;
 
   const { count: activePollingStations, error: stationsError } = await client
     .from("polling_stations")
@@ -827,6 +836,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
   return {
     eligibleVoters: eligibleVoters ?? 0,
+    eligibilitySlots: eligibilitySlots ?? 0,
     activePollingStations: activePollingStations ?? 0,
     totalParticipations: totalParticipations ?? 0,
   };
