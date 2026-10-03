@@ -662,6 +662,31 @@ export async function getAuditChainStatus(): Promise<AuditChainStatus> {
   return { consistent: verifyAuditTrail(events) === -1, checkedCount: events.length };
 }
 
+/** Contrôle des accès (doc 01 §16) : nombre de comptes actifs par rôle. */
+export async function getRoleAccountCounts(): Promise<Record<string, number>> {
+  if (!isSupabaseConfigured()) {
+    const counts: Record<string, number> = {};
+    for (const account of demo.listAdminAccounts()) {
+      for (const role of account.roles) {
+        counts[role.role] = (counts[role.role] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
+  const client = getServiceRoleClient();
+  const { data, error } = await client.from("user_roles").select("roles(code)");
+  if (error) throw error;
+
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const roleInfo = row.roles as unknown as { code: string } | { code: string }[] | null;
+    const code = Array.isArray(roleInfo) ? roleInfo[0]?.code : roleInfo?.code;
+    if (code) counts[code] = (counts[code] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export async function listIncidents(): Promise<IncidentSummary[]> {
   if (!isSupabaseConfigured()) {
     return demo.listIncidents().map((i) => ({
