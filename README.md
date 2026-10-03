@@ -37,6 +37,7 @@ Stack : Next.js 16 (App Router) + React 19 + TypeScript + Tailwind 4, Vitest pou
 - **Journal d'audit consultable** (`app/admin/audit`, réservé à `super_admin`/`observer`) : liste filtrable par type d'action, avec l'identité réelle de l'auteur de chaque action administrative, et un bandeau de vérification de la chaîne d'intégrité en direct (recalcule et compare les hachages, détecte toute altération rétroactive).
 - **Centre de conformité** (`app/admin/conformite`, doc 01 §16) : inventaire des données et finalités par table, contrôle des accès (comptes actifs par rôle, en direct), statut d'audit et incidents, évaluation des risques, plan de continuité, procédure d'audit indépendant, registre des versions, procédure de validation — présenté honnêtement : ce qui n'est pas encore implémenté (sauvegardes automatisées, audit externe) est annoncé comme tel, pas simulé.
 - Vérifié par douze tests Playwright de bout en bout : `voter-journey.spec.ts` (vote + anti-double-vote), `admin-journey.spec.ts` (création → candidats → ouverture → vote → clôture → dépouillement → publication → affichage public), `polling-stations.spec.ts` (bureaux, réconciliation par bureau), `roles-scopes.spec.ts` (un administrateur électoral ne peut pas gérer un scrutin hors de son périmètre, un agent est confiné à son bureau, un observateur ne peut rien modifier), `audit-log.spec.ts`, `compliance.spec.ts` (accès réservé à super admin/observateur), `geography.spec.ts` (sélection géographique en cascade).
+- **Tests de charge k6** (`tests/load/`, doc 06 §7.2) : pic d'identification à l'ouverture d'un scrutin (50 utilisateurs virtuels) et pic de consultation des résultats à la clôture (100 utilisateurs virtuels). Exécutés sur un build de production local : 0 % d'échec, p95 sous 260 ms dans les deux cas — résultats et limites détaillés dans docs/06 §7.2.
 
 **Limites connues de cette phase :** en mode Supabase, l'authentification délègue à Supabase Auth + son API MFA (`lib/db/supabase-auth-client.ts`, `lib/admin-session.ts`) — écrit selon la documentation officielle mais **non vérifié en direct**, faute de projet Supabase réel avec des comptes et facteurs MFA déjà enrôlés ; en mode démonstration (sans Supabase), tout fonctionne et est testé, avec des comptes et secrets TOTP affichés sur `/admin/connexion` (jamais en mode Supabase). La géographie réelle derrière les bureaux de vote (régions/départements/communes, doc 03) n'est qu'un seed **représentatif** — un seul département et une seule commune (le chef-lieu) par région (31 régions + Abidjan/Yamoussoukro), pas les 111 départements et toutes les communes officielles ; les circonscriptions électorales (découpage législatif) ne sont pas modélisées. Aucune procédure de sauvegarde/restauration automatisée (annoncé comme tel dans le centre de conformité, pas simulé) ; les élections créées via le back-office rendent automatiquement tous les électeurs de démonstration éligibles, et l'affectation d'un électeur à un bureau est un simple calcul déterministe (pas un vrai fichier électoral) — simplifications documentées dans le code.
 
@@ -47,6 +48,11 @@ npm install
 npm run dev          # http://localhost:3000
 npm test             # tests unitaires (Vitest)
 npx playwright test  # parcours de bout en bout (nécessite `npm run dev` lancé à part sur le port 3100, voir playwright.config.ts)
+
+# Tests de charge (doc 06 §7.2) — nécessite k6 (https://k6.io) et un build de PRODUCTION, jamais `next dev` :
+npm run build && npm run start
+BASE_URL=http://localhost:3000 k6 run tests/load/identification-spike.js
+BASE_URL=http://localhost:3000 k6 run tests/load/resultats-spike.js
 ```
 
 Sans Supabase configuré : comptes électeur démo `0000001`/`0000002`/`0000003`, code `123456` ; back-office sur `/admin/connexion` — les comptes de démonstration (un par rôle) et leur code TOTP valide à l'instant sont affichés directement sur cette page, avec le mot de passe (ex. `super@evote-ci.demo` / `super-demo`).
@@ -57,7 +63,8 @@ Pour connecter une vraie base Supabase : copier `.env.example` en `.env.local`, 
 
 - Vérifier en direct le chemin Supabase Auth/MFA avec un vrai projet (enrôlement de facteurs, `user_roles`).
 - Compléter la géographie avec les 111 départements et communes officiels (source INS), et modéliser les circonscriptions électorales.
-- Procédure de sauvegarde/restauration testée, audit de sécurité externe (doc 06 §7.3).
-- Tests d'acceptation formalisés, test de charge et de pénétration (doc 06 §7).
+- Procédure de sauvegarde/restauration testée, audit de sécurité externe et test de pénétration par une équipe indépendante (doc 06 §7.3 — hors de portée du code seul).
+- Rejouer les tests de charge contre une vraie base Supabase (latence réseau, pool de connexions) plutôt que le magasin de démonstration en mémoire.
+- Tests d'acceptation formalisés.
 
 Le code est construit par étapes, module par module, avec tests, conformément à la règle du cahier des charges : ne pas générer l'ensemble du code en un seul bloc.

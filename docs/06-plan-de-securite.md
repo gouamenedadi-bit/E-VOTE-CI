@@ -81,8 +81,17 @@ Repris et complétés dans `/tests` :
 12. Une session interrompue puis reprise ne crée jamais de second bulletin.
 
 ### 7.2 Tests de charge
-- Outil : k6 ou Artillery. Scénarios : pic d'identification simultanée en ouverture de scrutin, pic de consultation de la page publique de résultats à la clôture.
-- Objectif phase démo : tenir une charge simulée représentative avant toute communication publique de la démo (seuil à définir avec le volume de test prévu).
+
+Outil retenu : **k6** (scripts dans `tests/load/`). Deux scénarios, conformes au plan initial :
+
+| Scénario | Script | Charge testée | Seuils | Résultat (2026-10-03, build de production locale) |
+|---|---|---|---|---|
+| Pic d'identification à l'ouverture d'un scrutin | `identification-spike.js` | Montée à 50 utilisateurs virtuels en 10s, maintenue 20s | p95 < 2000 ms, < 1 % d'échecs | **p95 = 258 ms, 0 % d'échecs** sur 7396 requêtes (184 req/s) |
+| Pic de consultation des résultats à la clôture | `resultats-spike.js` | Montée à 100 utilisateurs virtuels en 10s, maintenue 20s | p95 < 1500 ms, < 1 % d'échecs | **p95 = 237 ms, 0 % d'échecs** sur 20181 requêtes (504 req/s) |
+
+Exécution : `npm run build && npm run start` (build de production — jamais `next dev`, non représentatif), puis `BASE_URL=http://localhost:3000 k6 run tests/load/<script>.js`.
+
+**Limites de ce résultat** : mesuré sur une machine de développement locale, avec le magasin de démonstration en mémoire (pas de latence réseau vers une vraie base Supabase, pas de contention sur un pool de connexions partagé). Les Server Actions Next.js n'acceptent une soumission que si le corps est réellement `multipart/form-data` — les scripts l'encodent à la main (k6 ne le fait pas automatiquement sans `http.file()`). Ce résultat confirme que l'architecture ne s'effondre pas sous une charge modeste ; il ne remplace pas un test de charge en environnement de préproduction avec une vraie base de données avant tout usage à grande échelle.
 
 ### 7.3 Test de pénétration
 - Portée : OWASP Top 10, logique métier du jeton/bulletin, contrôle d'accès RLS.
