@@ -23,4 +23,5 @@ export async function loginAsAdmin(
   await page.fill('input[name="password"]', password);
   await page.fill('input[name="mfaToken"]', code);
   await page.click('button[type="submit"]');
+  await page.waitForURL((url) => !url.pathname.includes("/connexion"));
 }

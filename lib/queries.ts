@@ -1,5 +1,6 @@
 import "server-only";
 import { isSupabaseConfigured, getServiceRoleClient } from "./db/supabase-server";
+import { verifyAuditTrail } from "./core/audit";
 import { reconcile } from "./core/tally";
 import * as demo from "./demo/store";
 
@@ -564,6 +565,101 @@ export async function listPublishedElections(): Promise<ElectionSummary[]> {
     }
   }
   return results;
+}
+
+export interface AuditEventSummary {
+  id: string;
+  actorName: string;
+  actionCode: string;
+  targetType: string;
+  targetId: string | null;
+  metadata: Record<string, unknown>;
+  occurredAt: Date;
+}
+
+export interface AuditChainStatus {
+  consistent: boolean;
+  checkedCount: number;
+}
+
+/**
+ * Journal d'audit (doc 05 §6, doc 06 §3) — toujours trie du plus ancien
+ * au plus recent pour que la verification de chaine ait un sens, puis
+ * inverse pour l'affichage (le plus recent en premier).
+ */
+export async function listAuditEvents(): Promise<AuditEventSummary[]> {
+  if (!isSupabaseConfigured()) {
+    const events = await demo.demoAuditRepository.listAll();
+    return events
+      .map((e) => ({
+        id: e.id,
+        actorName: e.actorUserId ? demo.getAdminAccount(e.actorUserId)?.fullName ?? "Compte inconnu" : "Système",
+        actionCode: e.actionCode,
+        targetType: e.targetType,
+        targetId: e.targetId,
+        metadata: e.metadata,
+        occurredAt: e.occurredAt,
+      }))
+      .reverse();
+  }
+
+  const client = getServiceRoleClient();
+  const { data, error } = await client
+    .from("audit_events")
+    .select("*")
+    .order("occurred_at", { ascending: true });
+  if (error) throw error;
+
+  const actorIds = Array.from(new Set((data ?? []).map((r) => r.actor_user_id).filter(Boolean)));
+  const namesById = new Map<string, string>();
+  if (actorIds.length > 0) {
+    const { data: users, error: usersError } = await client
+      .from("users")
+      .select("id, full_name")
+      .in("id", actorIds);
+    if (usersError) throw usersError;
+    for (const u of users ?? []) namesById.set(u.id, u.full_name);
+  }
+
+  return (data ?? [])
+    .map((row) => ({
+      id: row.id,
+      actorName: row.actor_user_id ? namesById.get(row.actor_user_id) ?? "Compte inconnu" : "Système",
+      actionCode: row.action_code,
+      targetType: row.target_type,
+      targetId: row.target_id,
+      metadata: row.metadata,
+      occurredAt: new Date(row.occurred_at),
+    }))
+    .reverse();
+}
+
+export async function getAuditChainStatus(): Promise<AuditChainStatus> {
+  if (!isSupabaseConfigured()) {
+    const events = await demo.demoAuditRepository.listAll();
+    return { consistent: verifyAuditTrail(events) === -1, checkedCount: events.length };
+  }
+
+  const client = getServiceRoleClient();
+  const { data, error } = await client
+    .from("audit_events")
+    .select("*")
+    .order("occurred_at", { ascending: true });
+  if (error) throw error;
+
+  const events = (data ?? []).map((row) => ({
+    id: row.id,
+    actorUserId: row.actor_user_id,
+    actionCode: row.action_code,
+    targetType: row.target_type,
+    targetId: row.target_id,
+    metadata: row.metadata,
+    prevHash: row.prev_hash,
+    recordHash: row.record_hash,
+    occurredAt: new Date(row.occurred_at),
+  }));
+
+  return { consistent: verifyAuditTrail(events) === -1, checkedCount: events.length };
 }
 
 export async function listIncidents(): Promise<IncidentSummary[]> {

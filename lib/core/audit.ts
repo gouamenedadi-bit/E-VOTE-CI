@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { computeRecordHash } from "./integrity";
+import { computeRecordHash, verifyChain, type ChainedRecord } from "./integrity";
 import type { AuditRepository, Clock } from "./ports";
 import type { AuditEvent } from "./types";
 
@@ -47,4 +47,27 @@ export async function appendAuditEvent(
 
   await deps.auditRepo.append(event);
   return event;
+}
+
+/**
+ * Recalcule la chaine du journal d'audit et verifie qu'aucun
+ * enregistrement n'a ete altere retroactivement (doc 06 §3.2). Les
+ * evenements doivent etre fournis dans leur ordre d'ecriture (le plus
+ * ancien d'abord). Retourne l'index du premier enregistrement invalide,
+ * ou -1 si la chaine est intacte.
+ */
+export function verifyAuditTrail(events: AuditEvent[]): number {
+  const chained: ChainedRecord[] = events.map((event) => ({
+    prevHash: event.prevHash,
+    recordHash: event.recordHash,
+    content: {
+      actorUserId: event.actorUserId,
+      actionCode: event.actionCode,
+      targetType: event.targetType,
+      targetId: event.targetId,
+      metadata: event.metadata,
+      occurredAt: event.occurredAt,
+    },
+  }));
+  return verifyChain(chained);
 }

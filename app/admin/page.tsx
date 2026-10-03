@@ -67,6 +67,11 @@ export default async function AdminDashboardPage({
               Bureaux de vote
             </Link>
           )}
+          {canViewAudit(session.roles) && (
+            <Link href="/admin/audit" className="text-sm text-ci-green font-semibold">
+              Journal d&apos;audit
+            </Link>
+          )}
           <form action={adminLogoutAction}>
             <button type="submit" className="text-sm text-ci-gray underline">
               Déconnexion
