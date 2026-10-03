@@ -82,25 +82,59 @@ export default async function AdminConnexionPage({
 
       {demoMode && (
         <div className="border border-gray-200 rounded-md p-4 text-sm">
-          <p className="font-semibold text-ci-dark mb-2">
-            Comptes de démonstration (code TOTP valide à l&apos;instant) :
+          <p className="font-semibold text-ci-dark mb-3">
+            Connexion rapide (démonstration) — un clic, sans recopier quoi que ce soit :
           </p>
           <ul className="flex flex-col gap-2">
             {demoAccounts.map((account) => (
-              <li key={account.id} data-testid="demo-account" data-role={account.roles[0]?.role} className="text-ci-gray">
-                <strong>{ROLE_LABELS[account.roles[0]?.role ?? ""] ?? account.roles[0]?.role}</strong>
-                <br />
-                <span data-field="email">{account.email}</span> /{" "}
-                <span data-field="password">{account.password}</span> / code :{" "}
-                <span data-field="code" className="font-mono font-semibold text-ci-dark">
-                  {computeTotp(account.mfaSecret)}
+              <li
+                key={account.id}
+                data-testid="demo-account"
+                data-role={account.roles[0]?.role}
+                className="flex items-center justify-between gap-3 border border-gray-100 rounded-md p-2"
+              >
+                <span className="text-ci-gray">
+                  {ROLE_LABELS[account.roles[0]?.role ?? ""] ?? account.roles[0]?.role}
                 </span>
+                <form action={adminLoginAction}>
+                  <input type="hidden" name="email" value={account.email} />
+                  <input type="hidden" name="password" value={account.password} />
+                  <input type="hidden" name="mfaToken" value={computeTotp(account.mfaSecret)} />
+                  <button
+                    type="submit"
+                    className="min-h-[36px] rounded-md border-2 border-ci-dark text-ci-dark font-semibold text-sm px-3"
+                  >
+                    Se connecter
+                  </button>
+                </form>
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-xs">
-            Le code change toutes les 30 secondes — rechargez la page si la connexion échoue.
-          </p>
+
+          <details className="mt-4">
+            <summary className="cursor-pointer text-ci-gray">
+              Voir les identifiants (pour une connexion manuelle)
+            </summary>
+            <ul className="flex flex-col gap-2 mt-2">
+              {demoAccounts.map((account) => (
+                <li key={account.id} className="text-ci-gray text-xs">
+                  <strong>{ROLE_LABELS[account.roles[0]?.role ?? ""] ?? account.roles[0]?.role}</strong>
+                  <br />
+                  email : <span data-field="email">{account.email}</span>
+                  <br />
+                  mot de passe : <span data-field="password">{account.password}</span>
+                  <br />
+                  code : <span data-field="code" className="font-mono font-semibold text-ci-dark">
+                    {computeTotp(account.mfaSecret)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs">
+              Le code change toutes les 30 secondes (tolérance de 2 minutes) — rechargez la page si
+              la connexion manuelle échoue.
+            </p>
+          </details>
         </div>
       )}
     </main>
