@@ -35,6 +35,7 @@ export interface EncryptedBallot {
   iv: Buffer;
   authTag: Buffer;
   wrappedDataKey: Buffer;
+  encryptionKeyId: string;
   integrityPrevHash: string;
   integrityRecordHash: string;
   recordedAt: Date;
@@ -58,9 +59,32 @@ export interface AuditEvent {
 }
 
 export interface TallyRecord {
+  id: string;
   electionId: string;
   pollingStationId: string | null;
   candidateId: string | null;
   ballotType: BallotType;
   voteCount: number;
+  integrityPrevHash: string;
+  integrityRecordHash: string;
+  computedAt: Date;
+}
+
+export type PublicationStatus = "draft" | "verified" | "published";
+
+export interface ResultPublication {
+  id: string;
+  electionId: string;
+  scopeLevel: "national";
+  status: PublicationStatus;
+  publishedAt: Date | null;
+}
+
+export interface IncidentReport {
+  id: string;
+  electionId: string | null;
+  category: string;
+  description: string;
+  status: "open" | "investigating" | "resolved";
+  openedAt: Date;
 }

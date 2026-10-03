@@ -6,14 +6,20 @@ import type {
   ConsumeResult,
   CredentialRepository,
   EligibilityRepository,
+  IncidentRepository,
   MasterKeyProvider,
   ParticipationRepository,
+  ResultPublicationRepository,
+  TallyRepository,
   TokenGenerator,
 } from "../../lib/core/ports";
 import type {
   AuditEvent,
   EncryptedBallot,
+  IncidentReport,
   ParticipationRecord,
+  ResultPublication,
+  TallyRecord,
   VoterEligibility,
   VotingCredential,
 } from "../../lib/core/types";
@@ -108,6 +114,9 @@ export class InMemoryParticipationRepository implements ParticipationRepository 
   async record(participation: ParticipationRecord): Promise<void> {
     this.records.push(participation);
   }
+  async countForElection(electionId: string): Promise<number> {
+    return this.records.filter((r) => r.electionId === electionId).length;
+  }
 }
 
 export class InMemoryBallotRepository implements BallotRepository {
@@ -142,6 +151,47 @@ export class InMemoryAuditRepository implements AuditRepository {
 
   async listAll(): Promise<AuditEvent[]> {
     return [...this.events];
+  }
+}
+
+export class InMemoryTallyRepository implements TallyRepository {
+  private records: TallyRecord[] = [];
+
+  async getLastIntegrityHash(electionId: string): Promise<string> {
+    const forElection = this.records.filter((r) => r.electionId === electionId);
+    const last = forElection[forElection.length - 1];
+    return last ? last.integrityRecordHash : GENESIS_HASH;
+  }
+
+  async listForElection(electionId: string): Promise<TallyRecord[]> {
+    return this.records.filter((r) => r.electionId === electionId);
+  }
+
+  async replaceForElection(electionId: string, records: TallyRecord[]): Promise<void> {
+    this.records = this.records.filter((r) => r.electionId !== electionId).concat(records);
+  }
+}
+
+export class InMemoryIncidentRepository implements IncidentRepository {
+  incidents: IncidentReport[] = [];
+  async report(incident: IncidentReport): Promise<void> {
+    this.incidents.push(incident);
+  }
+}
+
+export class InMemoryResultPublicationRepository implements ResultPublicationRepository {
+  private byElection = new Map<string, ResultPublication>();
+
+  async getForElection(electionId: string): Promise<ResultPublication | null> {
+    return this.byElection.get(electionId) ?? null;
+  }
+
+  async upsert(publication: ResultPublication): Promise<void> {
+    this.byElection.set(publication.electionId, publication);
+  }
+
+  async listPublished(): Promise<ResultPublication[]> {
+    return Array.from(this.byElection.values()).filter((p) => p.status === "published");
   }
 }
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getVoterSession } from "@/lib/session";
-import { getElection, hasParticipated, listCandidates } from "@/lib/queries";
+import { getElection, hasParticipated, listVotableOptions } from "@/lib/queries";
 import { VoteForm } from "@/components/VoteForm";
 import { castVoteAction } from "./actions";
 
@@ -26,7 +26,7 @@ export default async function VotePage({
     redirect(`/espace/${electionId}/recu`);
   }
 
-  const candidates = await listCandidates(electionId);
+  const candidates = await listVotableOptions(electionId);
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10 flex flex-col gap-6">

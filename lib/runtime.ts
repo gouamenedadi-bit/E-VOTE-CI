@@ -8,7 +8,10 @@ import {
   SupabaseBallotRepository,
   SupabaseCredentialRepository,
   SupabaseEligibilityRepository,
+  SupabaseIncidentRepository,
   SupabaseParticipationRepository,
+  SupabaseResultPublicationRepository,
+  SupabaseTallyRepository,
 } from "./db/repositories/supabase-repositories";
 import {
   demoAuditRepository,
@@ -16,7 +19,10 @@ import {
   demoClock,
   demoCredentialRepository,
   demoEligibilityRepository,
+  demoIncidentRepository,
   demoParticipationRepository,
+  demoResultPublicationRepository,
+  demoTallyRepository,
 } from "./demo/store";
 
 /**
@@ -39,6 +45,9 @@ export function getRuntimeDeps() {
       participationRepo: new SupabaseParticipationRepository(client),
       ballotRepo: new SupabaseBallotRepository(client),
       auditRepo: new SupabaseAuditRepository(client),
+      tallyRepo: new SupabaseTallyRepository(client),
+      incidentRepo: new SupabaseIncidentRepository(client),
+      resultPublicationRepo: new SupabaseResultPublicationRepository(client),
       masterKeyProvider,
       clock,
       tokenGenerator,
@@ -52,6 +61,9 @@ export function getRuntimeDeps() {
     participationRepo: demoParticipationRepository,
     ballotRepo: demoBallotRepository,
     auditRepo: demoAuditRepository,
+    tallyRepo: demoTallyRepository,
+    incidentRepo: demoIncidentRepository,
+    resultPublicationRepo: demoResultPublicationRepository,
     masterKeyProvider,
     clock: demoClock,
     tokenGenerator,

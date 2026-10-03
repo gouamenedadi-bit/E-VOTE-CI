@@ -1,7 +1,10 @@
 import type {
   AuditEvent,
   EncryptedBallot,
+  IncidentReport,
   ParticipationRecord,
+  ResultPublication,
+  TallyRecord,
   VoterEligibility,
   VotingCredential,
 } from "./types";
@@ -52,6 +55,7 @@ export interface CredentialRepository {
 
 export interface ParticipationRepository {
   record(participation: ParticipationRecord): Promise<void>;
+  countForElection(electionId: string): Promise<number>;
 }
 
 export interface BallotRepository {
@@ -70,4 +74,28 @@ export interface MasterKeyProvider {
   /** Cle maitresse cote serveur uniquement, jamais exposee au navigateur. */
   getKey(keyId: string): Buffer;
   currentKeyId(): string;
+}
+
+export interface TallyRepository {
+  getLastIntegrityHash(electionId: string): Promise<string>;
+  /** Vide si aucun depouillement n'a encore ete fait pour ce scrutin. */
+  listForElection(electionId: string): Promise<TallyRecord[]>;
+  /**
+   * Remplace l'ensemble des lignes d'un scrutin par un nouveau jeu (doc 06
+   * §7.1 test #8) — le remplacement lui-meme n'est permis que depuis
+   * lib/core/tally.ts, qui exige qu'aucun resultat ne soit deja `published`
+   * pour ce scrutin avant d'ecraser quoi que ce soit (pas de correction
+   * silencieuse apres publication, doc 01 §4.4).
+   */
+  replaceForElection(electionId: string, records: TallyRecord[]): Promise<void>;
+}
+
+export interface IncidentRepository {
+  report(incident: IncidentReport): Promise<void>;
+}
+
+export interface ResultPublicationRepository {
+  getForElection(electionId: string): Promise<ResultPublication | null>;
+  upsert(publication: ResultPublication): Promise<void>;
+  listPublished(): Promise<ResultPublication[]>;
 }

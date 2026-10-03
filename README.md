@@ -25,30 +25,36 @@ Phase prototype : chaînage de hachage append-only (type Merkle/blockchain lég�
 Stack : Next.js 16 (App Router) + React 19 + TypeScript + Tailwind 4, Vitest pour les tests unitaires, Playwright pour les parcours de bout en bout.
 
 **Construit et testé :**
-- `lib/core/` — logique métier critique (éligibilité, jeton de vote, chiffrement du bulletin, chaîne d'intégrité, dépouillement, audit), 20 tests unitaires, aucune dépendance à Next.js.
+- `lib/core/` — logique métier critique (éligibilité, jeton de vote, chiffrement du bulletin, chaîne d'intégrité, dépouillement avec réconciliation, publication, audit), 26 tests unitaires, aucune dépendance à Next.js.
 - `supabase/migrations/` — schéma PostgreSQL complet + RLS + fonction de consommation atomique du jeton (`0001_init.sql`), jeu de données de démonstration (`0002_demo_seed.sql`).
-- `lib/db/` — adaptateurs Supabase pour `lib/core`, et `lib/demo/store.ts` — magasin en mémoire qui permet de faire fonctionner tout le parcours électeur **sans configurer Supabase** (bascule automatique selon la présence de `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`, voir `lib/runtime.ts`).
-- Écrans publics : accueil, présentation.
-- Parcours électeur complet : connexion démo → tableau de bord → vote → confirmation → reçu (`app/connexion`, `app/espace`). Vérifié par un test Playwright (`tests/e2e/voter-journey.spec.ts`) couvrant aussi la reprise après un vote déjà effectué.
+- `lib/db/` — adaptateurs Supabase pour `lib/core`, et `lib/demo/store.ts` — magasin en mémoire qui permet de faire fonctionner tout le prototype **sans configurer Supabase** (bascule automatique selon la présence de `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`, voir `lib/runtime.ts`).
+- Écrans publics : accueil, présentation, résultats.
+- Parcours électeur complet : connexion démo → tableau de bord → vote → confirmation → reçu (`app/connexion`, `app/espace`).
+- Back-office administrateur (`app/admin`) : connexion (mot de passe unique simplifié — voir limite ci-dessous), tableau de bord, création de scrutin, gestion des candidats, transitions de statut (brouillon → ouvert → clôturé).
+- Module de dépouillement (`app/admin/elections/[id]/depouillement`) : décompte des bulletins, réconciliation participations/bulletins avec ouverture automatique d'incident en cas d'écart, publication des résultats.
+- Page publique des résultats (`app/resultats`) avec barres de pourcentage et statut provisoire/définitif selon la cohérence de la réconciliation.
+- Vérifié par deux tests Playwright de bout en bout : `tests/e2e/voter-journey.spec.ts` (vote + anti-double-vote) et `tests/e2e/admin-journey.spec.ts` (création → candidats → ouverture → vote → clôture → dépouillement → publication → affichage public).
 
-**Pas encore construit :** back-office (élections, candidats, bureaux), module de dépouillement/résultats publics, journal d'audit consultable, centre de conformité, authentification Supabase Auth/MFA pour les rôles admin/agent/observateur.
+**Limites connues de cette phase :** authentification admin simplifiée à un seul mot de passe (`lib/admin-session.ts`) — remplace Supabase Auth/MFA et le modèle de rôles multi-scopes du doc 04, à faire avant tout usage au-delà du prototype local ; pas de gestion des bureaux de vote (scrutins traités au niveau national uniquement) ; pas de journal d'audit consultable dans l'interface ni de centre de conformité ; les élections créées via le back-office rendent automatiquement tous les électeurs de démonstration éligibles (simplification documentée dans le code).
 
 ### Lancer le prototype en local
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000, sans Supabase : comptes démo 0000001/0000002/0000003, code 123456
-npm test           # tests unitaires (Vitest)
-npx playwright test  # parcours électeur de bout en bout (nécessite `npm run dev` lancé à part)
+npm run dev          # http://localhost:3000
+npm test             # tests unitaires (Vitest)
+npx playwright test  # parcours de bout en bout (nécessite `npm run dev` lancé à part sur le port 3100, voir playwright.config.ts)
 ```
+
+Sans Supabase configuré : comptes électeur démo `0000001`/`0000002`/`0000003`, code `123456` ; back-office sur `/admin/connexion`, mot de passe `admin-demo` (ou la valeur de `ADMIN_DEMO_PASSWORD`).
 
 Pour connecter une vraie base Supabase : copier `.env.example` en `.env.local`, renseigner les variables, puis appliquer les migrations (`supabase db push` ou via le tableau de bord Supabase).
 
 ## Prochaines étapes
 
-- Back-office administrateur (élections, candidats, bureaux de vote).
-- Module de dépouillement + page publique des résultats + journal d'audit consultable.
-- Authentification Supabase Auth/MFA pour les rôles non-électeur et RLS correspondante.
+- Authentification Supabase Auth/MFA et modèle de rôles multi-scopes (élection/bureau) pour remplacer l'authentification admin simplifiée actuelle.
+- Gestion des bureaux de vote et résultats par circonscription/région.
+- Journal d'audit consultable et centre de conformité dans l'interface admin.
 - Tests d'acceptation formalisés, test de charge et de pénétration (doc 06 §7).
 
 Le code est construit par étapes, module par module, avec tests, conformément à la règle du cahier des charges : ne pas générer l'ensemble du code en un seul bloc.

@@ -116,6 +116,7 @@ export async function depositBallot(
     iv: envelope.iv,
     authTag: envelope.authTag,
     wrappedDataKey: envelope.wrappedDataKey,
+    encryptionKeyId: deps.masterKeyProvider.currentKeyId(),
     integrityPrevHash: prevHash,
     integrityRecordHash: recordHash,
     recordedAt: deps.clock.now(),

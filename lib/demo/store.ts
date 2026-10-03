@@ -7,26 +7,50 @@ import type {
   ConsumeResult,
   CredentialRepository,
   EligibilityRepository,
+  IncidentRepository,
   ParticipationRepository,
+  ResultPublicationRepository,
+  TallyRepository,
 } from "../core/ports";
 import type {
   AuditEvent,
   EncryptedBallot,
+  IncidentReport,
   ParticipationRecord,
+  ResultPublication,
+  TallyRecord,
   VoterEligibility,
   VotingCredential,
 } from "../core/types";
 
 /**
- * Magasin de demonstration en memoire : permet de faire fonctionner le
- * parcours electeur complet SANS Supabase configure. A n'utiliser que pour
- * le prototype local — remplace par les adaptateurs Supabase
- * (lib/db/repositories/supabase-repositories.ts) des que SUPABASE_URL et
- * SUPABASE_SERVICE_ROLE_KEY sont definies (voir lib/runtime.ts).
+ * Magasin de demonstration en memoire : permet de faire fonctionner tout
+ * le prototype (parcours electeur ET back-office) SANS Supabase configure.
+ * A n'utiliser que pour le prototype local — remplace par les adaptateurs
+ * Supabase (lib/db/repositories/supabase-repositories.ts) des que
+ * SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY sont definies (lib/runtime.ts).
  *
- * Stocke sur `globalThis` pour survivre au hot-reload de `next dev`
- * (sinon chaque recompilation reinitialiserait les Maps).
+ * Stocke sur `globalThis` pour survivre au hot-reload de `next dev`.
  */
+
+export type DemoElectionStatus = "draft" | "open" | "closed";
+
+export interface DemoElectionType {
+  id: string;
+  code: string;
+  name: string;
+  allowsBlankBallot: boolean;
+}
+
+export interface DemoElection {
+  id: string;
+  electionTypeId: string;
+  name: string;
+  description: string;
+  status: DemoElectionStatus;
+  startsAt: Date;
+  endsAt: Date;
+}
 
 export interface DemoCandidate {
   id: string;
@@ -34,17 +58,6 @@ export interface DemoCandidate {
   displayName: string;
   partyName: string | null;
   ballotOrder: number;
-  isBlankOption?: boolean;
-}
-
-export interface DemoElection {
-  id: string;
-  name: string;
-  typeLabel: string;
-  status: "open" | "closed";
-  startsAt: Date;
-  endsAt: Date;
-  allowsBlankBallot: boolean;
 }
 
 export interface DemoVoter {
@@ -55,6 +68,7 @@ export interface DemoVoter {
 }
 
 interface DemoStoreState {
+  electionTypes: Map<string, DemoElectionType>;
   voters: Map<string, DemoVoter>;
   votersByNumber: Map<string, string>;
   elections: Map<string, DemoElection>;
@@ -64,6 +78,9 @@ interface DemoStoreState {
   credentialsByVoterElection: Map<string, string>;
   participations: ParticipationRecord[];
   ballots: Map<string, EncryptedBallot[]>;
+  tallyRecords: Map<string, TallyRecord[]>;
+  incidents: IncidentReport[];
+  resultPublications: Map<string, ResultPublication>;
   auditEvents: AuditEvent[];
 }
 
@@ -71,8 +88,17 @@ function eligibilityKey(voterId: string, electionId: string): string {
   return `${voterId}:${electionId}`;
 }
 
+const ELECTION_TYPE_SEED: Array<[string, string, string]> = [
+  ["presidentielle", "Présidentielle", "presidentielle-type"],
+  ["legislatives", "Législatives", "legislatives-type"],
+  ["municipales", "Municipales", "municipales-type"],
+  ["regionales", "Régionales", "regionales-type"],
+  ["senatoriales", "Sénatoriales", "senatoriales-type"],
+];
+
 function seed(): DemoStoreState {
   const state: DemoStoreState = {
+    electionTypes: new Map(),
     voters: new Map(),
     votersByNumber: new Map(),
     elections: new Map(),
@@ -82,24 +108,30 @@ function seed(): DemoStoreState {
     credentialsByVoterElection: new Map(),
     participations: [],
     ballots: new Map(),
+    tallyRecords: new Map(),
+    incidents: [],
+    resultPublications: new Map(),
     auditEvents: [],
   };
+
+  for (const [code, name, id] of ELECTION_TYPE_SEED) {
+    state.electionTypes.set(id, { id, code, name, allowsBlankBallot: true });
+  }
 
   const electionId = "demo-election-presidentielle";
   state.elections.set(electionId, {
     id: electionId,
+    electionTypeId: "presidentielle-type",
     name: "Présidentielle — Simulation",
-    typeLabel: "Présidentielle",
+    description: "Scrutin de démonstration, données entièrement fictives.",
     status: "open",
     startsAt: new Date(Date.now() - 60 * 60 * 1000),
     endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    allowsBlankBallot: true,
   });
 
   state.candidates.set(electionId, [
     { id: "cand-A", electionId, displayName: "Candidat A", partyName: "Parti A", ballotOrder: 1 },
     { id: "cand-B", electionId, displayName: "Candidat B", partyName: "Parti B", ballotOrder: 2 },
-    { id: "cand-blanc", electionId, displayName: "Vote blanc", partyName: null, ballotOrder: 3, isBlankOption: true },
   ]);
 
   const demoVoters: Array<[string, string, string]> = [
@@ -132,6 +164,10 @@ function getState(): DemoStoreState {
   return g[globalKey]!;
 }
 
+// ---------------------------------------------------------------------------
+// Lecture generale (voter + public + admin)
+// ---------------------------------------------------------------------------
+
 export function findVoterByCredentials(
   voterNumber: string,
   verificationCode: string
@@ -148,29 +184,154 @@ export function getVoter(voterId: string): DemoVoter | null {
   return getState().voters.get(voterId) ?? null;
 }
 
+export function getElectionType(electionTypeId: string): DemoElectionType | null {
+  return getState().electionTypes.get(electionTypeId) ?? null;
+}
+
+export function listElectionTypes(): DemoElectionType[] {
+  return Array.from(getState().electionTypes.values());
+}
+
 export function listOpenElectionsForVoter(
   voterId: string
-): Array<DemoElection & { alreadyVoted: boolean }> {
+): Array<DemoElection & { typeLabel: string; allowsBlankBallot: boolean; alreadyVoted: boolean }> {
   const state = getState();
-  const result: Array<DemoElection & { alreadyVoted: boolean }> = [];
+  const result: Array<DemoElection & { typeLabel: string; allowsBlankBallot: boolean; alreadyVoted: boolean }> = [];
   for (const election of state.elections.values()) {
+    if (election.status !== "open") continue;
     const key = eligibilityKey(voterId, election.id);
     const eligibility = state.eligibility.get(key);
     if (!eligibility?.isEligible) continue;
     const credentialId = state.credentialsByVoterElection.get(key);
     const credential = credentialId ? state.credentials.get(credentialId) : undefined;
-    result.push({ ...election, alreadyVoted: credential?.status === "consumed" });
+    const type = state.electionTypes.get(election.electionTypeId);
+    result.push({
+      ...election,
+      typeLabel: type?.name ?? "",
+      allowsBlankBallot: type?.allowsBlankBallot ?? true,
+      alreadyVoted: credential?.status === "consumed",
+    });
   }
   return result;
 }
 
-export function getElection(electionId: string): DemoElection | null {
-  return getState().elections.get(electionId) ?? null;
+export function getElection(
+  electionId: string
+): (DemoElection & { typeLabel: string; allowsBlankBallot: boolean }) | null {
+  const state = getState();
+  const election = state.elections.get(electionId);
+  if (!election) return null;
+  const type = state.electionTypes.get(election.electionTypeId);
+  return { ...election, typeLabel: type?.name ?? "", allowsBlankBallot: type?.allowsBlankBallot ?? true };
+}
+
+export function listAllElections(): Array<DemoElection & { typeLabel: string }> {
+  const state = getState();
+  return Array.from(state.elections.values()).map((election) => ({
+    ...election,
+    typeLabel: state.electionTypes.get(election.electionTypeId)?.name ?? "",
+  }));
 }
 
 export function listCandidates(electionId: string): DemoCandidate[] {
-  return getState().candidates.get(electionId) ?? [];
+  return [...(getState().candidates.get(electionId) ?? [])].sort((a, b) => a.ballotOrder - b.ballotOrder);
 }
+
+export function hasParticipated(voterId: string, electionId: string): boolean {
+  const state = getState();
+  const key = eligibilityKey(voterId, electionId);
+  const credentialId = state.credentialsByVoterElection.get(key);
+  if (!credentialId) return false;
+  return state.credentials.get(credentialId)?.status === "consumed";
+}
+
+// ---------------------------------------------------------------------------
+// Ecriture administrative (back-office, doc 05 §2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Cree un scrutin en statut `draft`. Pour garder le prototype simple a
+ * tester, tous les electeurs de demonstration existants sont
+ * automatiquement rendus eligibles au nouveau scrutin (simplification
+ * documentee — un usage reel assignerait l'eligibilite via le fichier
+ * electoral, doc 01 §4.1).
+ */
+export function createElection(input: {
+  electionTypeId: string;
+  name: string;
+  description: string;
+  startsAt: Date;
+  endsAt: Date;
+}): DemoElection {
+  const state = getState();
+  const election: DemoElection = {
+    id: randomUUID(),
+    electionTypeId: input.electionTypeId,
+    name: input.name,
+    description: input.description,
+    status: "draft",
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+  };
+  state.elections.set(election.id, election);
+  state.candidates.set(election.id, []);
+
+  for (const voter of state.voters.values()) {
+    state.eligibility.set(eligibilityKey(voter.id, election.id), {
+      demoVoterId: voter.id,
+      electionId: election.id,
+      pollingStationId: null,
+      isEligible: true,
+    });
+  }
+
+  return election;
+}
+
+const STATUS_TRANSITIONS: Record<DemoElectionStatus, DemoElectionStatus[]> = {
+  draft: ["open"],
+  open: ["closed"],
+  closed: [],
+};
+
+export type UpdateStatusResult = { ok: true } | { ok: false; reason: "not_found" | "invalid_transition" };
+
+export function updateElectionStatus(
+  electionId: string,
+  newStatus: DemoElectionStatus
+): UpdateStatusResult {
+  const state = getState();
+  const election = state.elections.get(electionId);
+  if (!election) return { ok: false, reason: "not_found" };
+  if (!STATUS_TRANSITIONS[election.status].includes(newStatus)) {
+    return { ok: false, reason: "invalid_transition" };
+  }
+  election.status = newStatus;
+  return { ok: true };
+}
+
+export function addCandidate(
+  electionId: string,
+  input: { displayName: string; partyName: string | null }
+): DemoCandidate | null {
+  const state = getState();
+  if (!state.elections.has(electionId)) return null;
+  const existing = state.candidates.get(electionId) ?? [];
+  const nextOrder = existing.reduce((max, c) => Math.max(max, c.ballotOrder), 0) + 1;
+  const candidate: DemoCandidate = {
+    id: randomUUID(),
+    electionId,
+    displayName: input.displayName,
+    partyName: input.partyName,
+    ballotOrder: nextOrder,
+  };
+  state.candidates.set(electionId, [...existing, candidate]);
+  return candidate;
+}
+
+// ---------------------------------------------------------------------------
+// Ports de /lib/core
+// ---------------------------------------------------------------------------
 
 export const demoClock: Clock = { now: () => new Date() };
 
@@ -230,6 +391,9 @@ export const demoParticipationRepository: ParticipationRepository = {
   async record(participation) {
     getState().participations.push(participation);
   },
+  async countForElection(electionId) {
+    return getState().participations.filter((p) => p.electionId === electionId).length;
+  },
 };
 
 export const demoBallotRepository: BallotRepository = {
@@ -267,10 +431,42 @@ export const demoAuditRepository: AuditRepository = {
   },
 };
 
-export function hasParticipated(voterId: string, electionId: string): boolean {
-  const state = getState();
-  const key = eligibilityKey(voterId, electionId);
-  const credentialId = state.credentialsByVoterElection.get(key);
-  if (!credentialId) return false;
-  return state.credentials.get(credentialId)?.status === "consumed";
+export const demoTallyRepository: TallyRepository = {
+  async getLastIntegrityHash(electionId) {
+    const records = getState().tallyRecords.get(electionId) ?? [];
+    const last = records[records.length - 1];
+    return last ? last.integrityRecordHash : GENESIS_HASH;
+  },
+
+  async listForElection(electionId) {
+    return getState().tallyRecords.get(electionId) ?? [];
+  },
+
+  async replaceForElection(electionId, records) {
+    getState().tallyRecords.set(electionId, records);
+  },
+};
+
+export const demoIncidentRepository: IncidentRepository = {
+  async report(incident) {
+    getState().incidents.push(incident);
+  },
+};
+
+export function listIncidents(): IncidentReport[] {
+  return [...getState().incidents];
 }
+
+export const demoResultPublicationRepository: ResultPublicationRepository = {
+  async getForElection(electionId) {
+    return getState().resultPublications.get(electionId) ?? null;
+  },
+
+  async upsert(publication) {
+    getState().resultPublications.set(publication.electionId, publication);
+  },
+
+  async listPublished() {
+    return Array.from(getState().resultPublications.values()).filter((p) => p.status === "published");
+  },
+};

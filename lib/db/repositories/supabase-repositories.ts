@@ -7,12 +7,18 @@ import type {
   ConsumeResult,
   CredentialRepository,
   EligibilityRepository,
+  IncidentRepository,
   ParticipationRepository,
+  ResultPublicationRepository,
+  TallyRepository,
 } from "../../core/ports";
 import type {
   AuditEvent,
   EncryptedBallot,
+  IncidentReport,
   ParticipationRecord,
+  ResultPublication,
+  TallyRecord,
   VoterEligibility,
   VotingCredential,
 } from "../../core/types";
@@ -138,6 +144,15 @@ export class SupabaseParticipationRepository implements ParticipationRepository 
     });
     if (error) throw error;
   }
+
+  async countForElection(electionId: string): Promise<number> {
+    const { count, error } = await this.client
+      .from("participation_records")
+      .select("id", { count: "exact", head: true })
+      .eq("election_id", electionId);
+    if (error) throw error;
+    return count ?? 0;
+  }
 }
 
 export class SupabaseBallotRepository implements BallotRepository {
@@ -164,7 +179,7 @@ export class SupabaseBallotRepository implements BallotRepository {
       iv: ballot.iv,
       auth_tag: ballot.authTag,
       wrapped_data_key: ballot.wrappedDataKey,
-      encryption_key_id: "env-key-1",
+      encryption_key_id: ballot.encryptionKeyId,
       integrity_prev_hash: ballot.integrityPrevHash,
       integrity_record_hash: ballot.integrityRecordHash,
       recorded_at: ballot.recordedAt.toISOString(),
@@ -188,6 +203,7 @@ export class SupabaseBallotRepository implements BallotRepository {
       iv: Buffer.from(row.iv),
       authTag: Buffer.from(row.auth_tag),
       wrappedDataKey: Buffer.from(row.wrapped_data_key),
+      encryptionKeyId: row.encryption_key_id,
       integrityPrevHash: row.integrity_prev_hash,
       integrityRecordHash: row.integrity_record_hash,
       recordedAt: new Date(row.recorded_at),
@@ -243,6 +259,141 @@ export class SupabaseAuditRepository implements AuditRepository {
       prevHash: row.prev_hash,
       recordHash: row.record_hash,
       occurredAt: new Date(row.occurred_at),
+    }));
+  }
+}
+
+export class SupabaseTallyRepository implements TallyRepository {
+  constructor(private client: SupabaseClient) {}
+
+  async getLastIntegrityHash(electionId: string): Promise<string> {
+    const { data, error } = await this.client
+      .from("tally_records")
+      .select("integrity_record_hash")
+      .eq("election_id", electionId)
+      .order("computed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.integrity_record_hash ?? GENESIS_HASH;
+  }
+
+  async listForElection(electionId: string): Promise<TallyRecord[]> {
+    const { data, error } = await this.client
+      .from("tally_records")
+      .select("*")
+      .eq("election_id", electionId)
+      .order("computed_at", { ascending: true });
+
+    if (error) throw error;
+
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      electionId: row.election_id,
+      pollingStationId: row.polling_station_id,
+      candidateId: row.candidate_id,
+      ballotType: row.ballot_type,
+      voteCount: row.vote_count,
+      integrityPrevHash: row.integrity_prev_hash,
+      integrityRecordHash: row.integrity_record_hash,
+      computedAt: new Date(row.computed_at),
+    }));
+  }
+
+  async replaceForElection(electionId: string, records: TallyRecord[]): Promise<void> {
+    const { error: deleteError } = await this.client
+      .from("tally_records")
+      .delete()
+      .eq("election_id", electionId);
+    if (deleteError) throw deleteError;
+
+    if (records.length === 0) return;
+
+    const { error: insertError } = await this.client.from("tally_records").insert(
+      records.map((r) => ({
+        id: r.id,
+        election_id: r.electionId,
+        polling_station_id: r.pollingStationId,
+        candidate_id: r.candidateId,
+        ballot_type: r.ballotType,
+        vote_count: r.voteCount,
+        integrity_prev_hash: r.integrityPrevHash,
+        integrity_record_hash: r.integrityRecordHash,
+        computed_at: r.computedAt.toISOString(),
+      }))
+    );
+    if (insertError) throw insertError;
+  }
+}
+
+export class SupabaseIncidentRepository implements IncidentRepository {
+  constructor(private client: SupabaseClient) {}
+
+  async report(incident: IncidentReport): Promise<void> {
+    const { error } = await this.client.from("incident_reports").insert({
+      id: incident.id,
+      election_id: incident.electionId,
+      category: incident.category,
+      description: incident.description,
+      status: incident.status,
+      opened_at: incident.openedAt.toISOString(),
+    });
+    if (error) throw error;
+  }
+}
+
+export class SupabaseResultPublicationRepository implements ResultPublicationRepository {
+  constructor(private client: SupabaseClient) {}
+
+  async getForElection(electionId: string): Promise<ResultPublication | null> {
+    const { data, error } = await this.client
+      .from("result_publications")
+      .select("*")
+      .eq("election_id", electionId)
+      .eq("scope_level", "national")
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      electionId: data.election_id,
+      scopeLevel: "national",
+      status: data.status,
+      publishedAt: data.published_at ? new Date(data.published_at) : null,
+    };
+  }
+
+  async upsert(publication: ResultPublication): Promise<void> {
+    const { error } = await this.client.from("result_publications").upsert(
+      {
+        id: publication.id,
+        election_id: publication.electionId,
+        scope_level: publication.scopeLevel,
+        status: publication.status,
+        published_at: publication.publishedAt?.toISOString() ?? null,
+      },
+      { onConflict: "id" }
+    );
+    if (error) throw error;
+  }
+
+  async listPublished(): Promise<ResultPublication[]> {
+    const { data, error } = await this.client
+      .from("result_publications")
+      .select("*")
+      .eq("status", "published");
+
+    if (error) throw error;
+
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      electionId: row.election_id,
+      scopeLevel: "national",
+      status: row.status,
+      publishedAt: row.published_at ? new Date(row.published_at) : null,
     }));
   }
 }
