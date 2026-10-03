@@ -52,8 +52,7 @@ test("rattachement de bureaux et reconciliation par bureau", async ({ page }) =>
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL(`${BASE_URL}/espace`);
     await page.goto(`${BASE_URL}/espace/${electionId}`);
-    await page.click('input[name="candidate"][value*="-"]');
-    await page.click('button:has-text("Continuer")');
+    await page.getByRole("button", { name: "Voter" }).first().click();
     await page.click('button:has-text("Confirmer le vote")');
     await expect(page).toHaveURL(`${BASE_URL}/espace/${electionId}/recu`);
   }

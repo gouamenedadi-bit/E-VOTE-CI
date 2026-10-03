@@ -19,8 +19,10 @@ test("identification, vote et reçu", async ({ page }) => {
   await page.click('a[href="/espace/demo-election-presidentielle"]');
   await expect(page).toHaveURL(`${BASE_URL}/espace/demo-election-presidentielle`);
 
-  await page.click('input[name="candidate"][value="cand-A"]');
-  await page.click('button:has-text("Continuer")');
+  await page
+    .locator(".ci-card", { hasText: "Candidat A" })
+    .getByRole("button", { name: "Voter" })
+    .click();
 
   await expect(page.getByText("N°1 — Candidat A")).toBeVisible();
   await page.click('button:has-text("Confirmer le vote")');

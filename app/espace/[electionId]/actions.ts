@@ -59,7 +59,7 @@ export async function castVoteAction(formData: FormData): Promise<void> {
     {
       rawToken: issued.rawToken,
       electionId,
-      choice: { type: ballotType, candidateId: ballotType === "blank" ? null : candidateId },
+      choice: { type: ballotType, candidateId: ballotType === "valid" ? candidateId : null },
       pollingStationId,
     },
     deps

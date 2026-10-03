@@ -37,6 +37,7 @@ export interface CandidateSummary {
   partyName: string | null;
   ballotOrder: number;
   isBlankOption?: boolean;
+  isNullOption?: boolean;
 }
 
 export interface ElectionTypeSummary {
@@ -487,10 +488,11 @@ export async function listVotableOptions(electionId: string): Promise<CandidateS
 
   if (!election?.allowsBlankBallot) return candidates;
 
-  const nextOrder = candidates.reduce((max, c) => Math.max(max, c.ballotOrder), 0) + 1;
+  const blankOrder = candidates.reduce((max, c) => Math.max(max, c.ballotOrder), 0) + 1;
   return [
     ...candidates,
-    { id: "__blank__", displayName: "Vote blanc", partyName: null, ballotOrder: nextOrder, isBlankOption: true },
+    { id: "__blank__", displayName: "Vote blanc", partyName: null, ballotOrder: blankOrder, isBlankOption: true },
+    { id: "__null__", displayName: "Bulletin nul", partyName: null, ballotOrder: blankOrder + 1, isNullOption: true },
   ];
 }
 

@@ -19,7 +19,7 @@ export const identificationSchema = z.object({
 
 export const voteChoiceSchema = z.object({
   electionId: z.string().min(1),
-  ballotType: z.enum(["valid", "blank"]),
+  ballotType: z.enum(["valid", "blank", "null"]),
   candidateId: z.string().nullable(),
 });
 
