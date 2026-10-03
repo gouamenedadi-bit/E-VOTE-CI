@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/admin-session";
+import { requireAdminSession } from "@/lib/admin-session";
+import { canRunTally } from "@/lib/core/authorization";
 import { getElection, getTallySummary } from "@/lib/queries";
 import { publishResultsAction, runTallyAction } from "./actions";
 
@@ -9,8 +10,12 @@ export default async function DepouillementPage({
 }: {
   params: Promise<{ electionId: string }>;
 }) {
-  await requireAdmin();
+  const session = await requireAdminSession();
   const { electionId } = await params;
+
+  if (!canRunTally(session.roles, electionId)) {
+    redirect("/admin?erreur=forbidden");
+  }
 
   const election = await getElection(electionId);
   if (!election) {

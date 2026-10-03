@@ -108,6 +108,50 @@ export async function listPollingStationsForElection(electionId: string): Promis
     .map((s) => ({ id: s.id, code: s.code, name: s.name, communeName: s.commune_name ?? "", isActive: s.is_active }));
 }
 
+export async function listElectionsForStation(pollingStationId: string): Promise<ElectionSummary[]> {
+  if (!isSupabaseConfigured()) {
+    const ids = demo.listElectionIdsForStation(pollingStationId);
+    const all = await listAllElections();
+    return all.filter((e) => ids.includes(e.id));
+  }
+
+  const client = getServiceRoleClient();
+  const { data, error } = await client
+    .from("election_polling_stations")
+    .select("election_id")
+    .eq("polling_station_id", pollingStationId);
+  if (error) throw error;
+
+  const ids = (data ?? []).map((r) => r.election_id);
+  if (ids.length === 0) return [];
+  const all = await listAllElections();
+  return all.filter((e) => ids.includes(e.id));
+}
+
+export async function getPollingStation(pollingStationId: string): Promise<PollingStationSummary | null> {
+  const all = await listPollingStations();
+  return all.find((s) => s.id === pollingStationId) ?? null;
+}
+
+export async function countParticipationsAtStation(
+  electionId: string,
+  pollingStationId: string
+): Promise<number> {
+  if (!isSupabaseConfigured()) {
+    const records = await demo.demoParticipationRepository.listForElection(electionId);
+    return records.filter((r) => r.pollingStationId === pollingStationId).length;
+  }
+
+  const client = getServiceRoleClient();
+  const { count, error } = await client
+    .from("participation_records")
+    .select("id", { count: "exact", head: true })
+    .eq("election_id", electionId)
+    .eq("polling_station_id", pollingStationId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /**
  * Assignation deterministe et stable d'un bureau de vote parmi ceux
  * rattaches au scrutin (doc 01 §4.4) — simplification de prototype en

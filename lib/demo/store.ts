@@ -1,5 +1,7 @@
 import { randomUUID } from "crypto";
+import type { RoleAssignment } from "../core/authorization";
 import { GENESIS_HASH } from "../core/integrity";
+import { generateTotpSecret } from "../core/totp";
 import type {
   AuditRepository,
   BallotRepository,
@@ -75,10 +77,21 @@ export interface DemoPollingStation {
   isActive: boolean;
 }
 
+export interface DemoAdminAccount {
+  id: string;
+  email: string;
+  password: string;
+  fullName: string;
+  mfaSecret: string;
+  roles: RoleAssignment[];
+}
+
 interface DemoStoreState {
   electionTypes: Map<string, DemoElectionType>;
   voters: Map<string, DemoVoter>;
   votersByNumber: Map<string, string>;
+  adminAccounts: Map<string, DemoAdminAccount>;
+  adminAccountsByEmail: Map<string, string>;
   elections: Map<string, DemoElection>;
   candidates: Map<string, DemoCandidate[]>;
   pollingStations: Map<string, DemoPollingStation>;
@@ -111,6 +124,8 @@ function seed(): DemoStoreState {
     electionTypes: new Map(),
     voters: new Map(),
     votersByNumber: new Map(),
+    adminAccounts: new Map(),
+    adminAccountsByEmail: new Map(),
     elections: new Map(),
     candidates: new Map(),
     pollingStations: new Map(),
@@ -168,9 +183,56 @@ function seed(): DemoStoreState {
     ["BV-001", "École A", "Abidjan"],
     ["BV-002", "École B", "Abidjan"],
   ];
+  const stationIdByCode = new Map<string, string>();
   for (const [code, name, communeName] of stationSeeds) {
     const id = randomUUID();
     state.pollingStations.set(id, { id, code, name, communeName, isActive: true });
+    stationIdByCode.set(code, id);
+  }
+
+  const adminSeeds: Array<{
+    email: string;
+    password: string;
+    fullName: string;
+    roles: RoleAssignment[];
+  }> = [
+    {
+      email: "super@evote-ci.demo",
+      password: "super-demo",
+      fullName: "Super Administrateur Démo",
+      roles: [{ role: "super_admin", scopeElectionId: null, scopePollingStationId: null }],
+    },
+    {
+      email: "admin.presidentielle@evote-ci.demo",
+      password: "admin-demo",
+      fullName: "Administrateur Électoral Démo",
+      roles: [{ role: "election_admin", scopeElectionId: electionId, scopePollingStationId: null }],
+    },
+    {
+      email: "agent.bv001@evote-ci.demo",
+      password: "agent-demo",
+      fullName: "Agent de Bureau Démo",
+      roles: [
+        {
+          role: "station_agent",
+          scopeElectionId: null,
+          scopePollingStationId: stationIdByCode.get("BV-001")!,
+        },
+      ],
+    },
+    {
+      email: "observateur@evote-ci.demo",
+      password: "observateur-demo",
+      fullName: "Observateur Démo",
+      roles: [{ role: "observer", scopeElectionId: null, scopePollingStationId: null }],
+    },
+  ];
+
+  for (const seedAccount of adminSeeds) {
+    const id = randomUUID();
+    const account: DemoAdminAccount = { id, mfaSecret: generateTotpSecret(), ...seedAccount };
+    state.adminAccounts.set(id, account);
+    state.adminAccountsByEmail.set(seedAccount.email, id);
   }
 
   return state;
@@ -203,6 +265,21 @@ export function findVoterByCredentials(
 
 export function getVoter(voterId: string): DemoVoter | null {
   return getState().voters.get(voterId) ?? null;
+}
+
+export function findAdminAccountByEmail(email: string): DemoAdminAccount | null {
+  const state = getState();
+  const id = state.adminAccountsByEmail.get(email.trim().toLowerCase());
+  return id ? state.adminAccounts.get(id) ?? null : null;
+}
+
+export function getAdminAccount(accountId: string): DemoAdminAccount | null {
+  return getState().adminAccounts.get(accountId) ?? null;
+}
+
+/** Pour l'aide affichee sur /admin/connexion en mode demonstration uniquement. */
+export function listAdminAccounts(): DemoAdminAccount[] {
+  return Array.from(getState().adminAccounts.values());
 }
 
 export function getElectionType(electionTypeId: string): DemoElectionType | null {
@@ -366,6 +443,15 @@ export function listPollingStationsForElection(electionId: string): DemoPollingS
   return Array.from(ids)
     .map((id) => state.pollingStations.get(id))
     .filter((s): s is DemoPollingStation => Boolean(s));
+}
+
+export function listElectionIdsForStation(pollingStationId: string): string[] {
+  const state = getState();
+  const ids: string[] = [];
+  for (const [electionId, stationIds] of state.electionPollingStations.entries()) {
+    if (stationIds.has(pollingStationId)) ids.push(electionId);
+  }
+  return ids;
 }
 
 export function attachPollingStationToElection(electionId: string, pollingStationId: string): boolean {

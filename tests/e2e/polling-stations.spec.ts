@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { loginAsAdmin } from "./helpers";
 
 /**
  * Verifie la gestion des bureaux de vote et la reconciliation par bureau
@@ -7,12 +8,9 @@ import { test, expect } from "@playwright/test";
  * par bureau sur la page de depouillement.
  */
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3100";
-const ADMIN_PASSWORD = process.env.ADMIN_DEMO_PASSWORD ?? "admin-demo";
 
 test("rattachement de bureaux et reconciliation par bureau", async ({ page }) => {
-  await page.goto(`${BASE_URL}/admin/connexion`);
-  await page.fill('input[name="password"]', ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
+  await loginAsAdmin(page, BASE_URL, "super_admin");
   await expect(page).toHaveURL(`${BASE_URL}/admin`);
 
   // Creation du scrutin
@@ -61,9 +59,7 @@ test("rattachement de bureaux et reconciliation par bureau", async ({ page }) =>
   }
 
   // Cloture + depouillement
-  await page.goto(`${BASE_URL}/admin/connexion`);
-  await page.fill('input[name="password"]', ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
+  await loginAsAdmin(page, BASE_URL, "super_admin");
   await expect(page).toHaveURL(`${BASE_URL}/admin`);
   await page.goto(`${electionUrl}`);
   await page.click('button:has-text("Clôturer le scrutin")');

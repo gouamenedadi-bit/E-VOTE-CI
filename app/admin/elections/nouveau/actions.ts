@@ -2,8 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/admin-session";
+import { requireAdminSession } from "@/lib/admin-session";
+import { canCreateElections } from "@/lib/core/authorization";
+import { appendAuditEvent } from "@/lib/core/audit";
 import { isSupabaseConfigured, getServiceRoleClient } from "@/lib/db/supabase-server";
+import { getRuntimeDeps } from "@/lib/runtime";
 import * as demo from "@/lib/demo/store";
 
 const createElectionSchema = z.object({
@@ -15,7 +18,10 @@ const createElectionSchema = z.object({
 });
 
 export async function createElectionAction(formData: FormData): Promise<void> {
-  await requireAdmin();
+  const session = await requireAdminSession();
+  if (!canCreateElections(session.roles)) {
+    redirect("/admin?erreur=forbidden");
+  }
 
   const parsed = createElectionSchema.safeParse({
     electionTypeId: formData.get("electionTypeId"),
@@ -59,6 +65,7 @@ export async function createElectionAction(formData: FormData): Promise<void> {
         starts_at: startsAtDate.toISOString(),
         ends_at: endsAtDate.toISOString(),
         status: "draft",
+        created_by: session.accountId,
       })
       .select("id")
       .single();
@@ -77,6 +84,17 @@ export async function createElectionAction(formData: FormData): Promise<void> {
       if (eligibilityError) throw eligibilityError;
     }
   }
+
+  await appendAuditEvent(
+    {
+      actorUserId: session.accountId,
+      actionCode: "election.created",
+      targetType: "election",
+      targetId: electionId,
+      metadata: { name },
+    },
+    getRuntimeDeps()
+  );
 
   redirect(`/admin/elections/${electionId}`);
 }

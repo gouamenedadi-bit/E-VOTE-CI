@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { requireAdmin } from "@/lib/admin-session";
+import { redirect } from "next/navigation";
+import { requireAdminSession } from "@/lib/admin-session";
+import { canCreateElections } from "@/lib/core/authorization";
 import { listElectionTypes } from "@/lib/queries";
 import { createElectionAction } from "./actions";
 
@@ -13,7 +15,10 @@ export default async function NouveauScrutinPage({
 }: {
   searchParams: Promise<{ erreur?: string }>;
 }) {
-  await requireAdmin();
+  const session = await requireAdminSession();
+  if (!canCreateElections(session.roles)) {
+    redirect("/admin?erreur=forbidden");
+  }
   const { erreur } = await searchParams;
   const electionTypes = await listElectionTypes();
 

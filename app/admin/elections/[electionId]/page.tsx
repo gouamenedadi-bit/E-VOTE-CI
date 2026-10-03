@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/admin-session";
+import { requireAdminSession } from "@/lib/admin-session";
+import { canManageElection, canManagePollingStations } from "@/lib/core/authorization";
 import { getElection, listCandidates, listPollingStations, listPollingStationsForElection } from "@/lib/queries";
 import { attachPollingStationAction } from "../../bureaux/actions";
 import { addCandidateAction, changeElectionStatusAction } from "./actions";
@@ -16,12 +17,15 @@ export default async function ManageElectionPage({
 }: {
   params: Promise<{ electionId: string }>;
 }) {
-  await requireAdmin();
+  const session = await requireAdminSession();
   const { electionId } = await params;
 
   const election = await getElection(electionId);
   if (!election) {
     redirect("/admin");
+  }
+  if (!canManageElection(session.roles, electionId)) {
+    redirect("/admin?erreur=forbidden");
   }
 
   const candidates = await listCandidates(electionId);
@@ -171,11 +175,16 @@ export default async function ManageElectionPage({
         )}
         {allStations.length === 0 && (
           <p className="text-sm text-ci-gray">
-            Aucun bureau n&apos;existe encore —{" "}
-            <Link href="/admin/bureaux" className="text-ci-green font-semibold">
-              en créer un
-            </Link>
-            .
+            Aucun bureau n&apos;existe encore.
+            {canManagePollingStations(session.roles) && (
+              <>
+                {" "}
+                <Link href="/admin/bureaux" className="text-ci-green font-semibold">
+                  En créer un
+                </Link>
+                .
+              </>
+            )}
           </p>
         )}
       </div>

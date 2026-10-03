@@ -1,15 +1,19 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/admin-session";
+import { requireAdminSession } from "@/lib/admin-session";
+import { canRunTally } from "@/lib/core/authorization";
 import { getRuntimeDeps } from "@/lib/runtime";
 import { runTally } from "@/lib/core/tally";
 import { publishResults } from "@/lib/core/publication";
 
 export async function runTallyAction(formData: FormData): Promise<void> {
-  await requireAdmin();
+  const session = await requireAdminSession();
   const electionId = String(formData.get("electionId") ?? "");
   if (!electionId) redirect("/admin");
+  if (!canRunTally(session.roles, electionId)) {
+    redirect("/admin?erreur=forbidden");
+  }
 
   await runTally(electionId, getRuntimeDeps());
 
@@ -17,9 +21,12 @@ export async function runTallyAction(formData: FormData): Promise<void> {
 }
 
 export async function publishResultsAction(formData: FormData): Promise<void> {
-  await requireAdmin();
+  const session = await requireAdminSession();
   const electionId = String(formData.get("electionId") ?? "");
   if (!electionId) redirect("/admin");
+  if (!canRunTally(session.roles, electionId)) {
+    redirect("/admin?erreur=forbidden");
+  }
 
   await publishResults(electionId, getRuntimeDeps());
 

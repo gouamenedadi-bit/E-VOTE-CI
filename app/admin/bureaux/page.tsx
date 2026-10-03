@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { requireAdmin } from "@/lib/admin-session";
+import { redirect } from "next/navigation";
+import { requireAdminSession } from "@/lib/admin-session";
+import { canManagePollingStations } from "@/lib/core/authorization";
 import { listPollingStations } from "@/lib/queries";
 import { createPollingStationAction } from "./actions";
 
@@ -13,7 +15,10 @@ export default async function BureauxDeVotePage({
 }: {
   searchParams: Promise<{ erreur?: string }>;
 }) {
-  await requireAdmin();
+  const session = await requireAdminSession();
+  if (!canManagePollingStations(session.roles)) {
+    redirect("/admin?erreur=forbidden");
+  }
   const { erreur } = await searchParams;
   const stations = await listPollingStations();
 

@@ -1,20 +1,18 @@
 import { test, expect } from "@playwright/test";
+import { loginAsAdmin } from "./helpers";
 
 /**
  * Parcours back-office complet (doc 05 §2 et §4) : creation d'un scrutin,
  * ajout de candidats, ouverture, vote d'un electeur demo, cloture,
  * depouillement, publication, puis verification sur la page publique.
- * Necessite `next dev` lance sur BASE_URL avec ADMIN_DEMO_PASSWORD non
- * definie (utilise le mot de passe de developpement "admin-demo").
+ * Necessite `next dev` lance sur BASE_URL en mode demonstration (sans
+ * Supabase configure).
  */
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3100";
-const ADMIN_PASSWORD = process.env.ADMIN_DEMO_PASSWORD ?? "admin-demo";
 
 test("creation, vote, depouillement et publication d'un scrutin", async ({ page }) => {
-  // 1. Connexion admin
-  await page.goto(`${BASE_URL}/admin/connexion`);
-  await page.fill('input[name="password"]', ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
+  // 1. Connexion admin (super_admin — seul role autorise a creer un scrutin)
+  await loginAsAdmin(page, BASE_URL, "super_admin");
   await expect(page).toHaveURL(`${BASE_URL}/admin`);
 
   // 2. Creation du scrutin
@@ -62,9 +60,8 @@ test("creation, vote, depouillement et publication d'un scrutin", async ({ page 
   await expect(page).toHaveURL(`${BASE_URL}/espace/${electionId}/recu`);
 
   // 6. Retour admin : cloture du scrutin
-  await page.goto(`${BASE_URL}/admin/connexion`);
-  await page.fill('input[name="password"]', ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
+  await loginAsAdmin(page, BASE_URL, "super_admin");
+  await expect(page).toHaveURL(`${BASE_URL}/admin`);
   await page.goto(`${electionUrl}`);
   await page.click('button:has-text("Clôturer le scrutin")');
   await expect(page.getByText(/Clôturé/)).toBeVisible();

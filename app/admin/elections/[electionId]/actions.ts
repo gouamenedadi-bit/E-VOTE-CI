@@ -2,8 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/admin-session";
+import { requireAdminSession } from "@/lib/admin-session";
+import { canManageElection } from "@/lib/core/authorization";
+import { appendAuditEvent } from "@/lib/core/audit";
 import { isSupabaseConfigured, getServiceRoleClient } from "@/lib/db/supabase-server";
+import { getRuntimeDeps } from "@/lib/runtime";
 import * as demo from "@/lib/demo/store";
 
 const statusSchema = z.object({
@@ -12,7 +15,7 @@ const statusSchema = z.object({
 });
 
 export async function changeElectionStatusAction(formData: FormData): Promise<void> {
-  await requireAdmin();
+  const session = await requireAdminSession();
 
   const parsed = statusSchema.safeParse({
     electionId: formData.get("electionId"),
@@ -22,6 +25,10 @@ export async function changeElectionStatusAction(formData: FormData): Promise<vo
 
   const { electionId, newStatus } = parsed.data;
 
+  if (!canManageElection(session.roles, electionId)) {
+    redirect("/admin?erreur=forbidden");
+  }
+
   if (!isSupabaseConfigured()) {
     demo.updateElectionStatus(electionId, newStatus);
   } else {
@@ -29,6 +36,17 @@ export async function changeElectionStatusAction(formData: FormData): Promise<vo
     const { error } = await client.from("elections").update({ status: newStatus }).eq("id", electionId);
     if (error) throw error;
   }
+
+  await appendAuditEvent(
+    {
+      actorUserId: session.accountId,
+      actionCode: "election.status_changed",
+      targetType: "election",
+      targetId: electionId,
+      metadata: { newStatus },
+    },
+    getRuntimeDeps()
+  );
 
   redirect(`/admin/elections/${electionId}`);
 }
@@ -40,7 +58,7 @@ const candidateSchema = z.object({
 });
 
 export async function addCandidateAction(formData: FormData): Promise<void> {
-  await requireAdmin();
+  const session = await requireAdminSession();
 
   const parsed = candidateSchema.safeParse({
     electionId: formData.get("electionId"),
@@ -50,6 +68,10 @@ export async function addCandidateAction(formData: FormData): Promise<void> {
   if (!parsed.success) redirect("/admin");
 
   const { electionId, displayName, partyName } = parsed.data;
+
+  if (!canManageElection(session.roles, electionId)) {
+    redirect("/admin?erreur=forbidden");
+  }
 
   if (!isSupabaseConfigured()) {
     demo.addCandidate(electionId, { displayName, partyName: partyName || null });
@@ -74,6 +96,17 @@ export async function addCandidateAction(formData: FormData): Promise<void> {
     });
     if (error) throw error;
   }
+
+  await appendAuditEvent(
+    {
+      actorUserId: session.accountId,
+      actionCode: "candidate.added",
+      targetType: "election",
+      targetId: electionId,
+      metadata: { displayName },
+    },
+    getRuntimeDeps()
+  );
 
   redirect(`/admin/elections/${electionId}`);
 }
