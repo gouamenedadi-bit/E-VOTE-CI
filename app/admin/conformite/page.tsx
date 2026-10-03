@@ -67,12 +67,13 @@ export default async function CompliancePage() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10 flex flex-col gap-8">
-      <Link href="/admin" className="text-ci-green font-semibold">
+      <Link href="/admin" className="text-ci-green font-semibold hover:underline w-fit">
         ← Administration
       </Link>
 
-      <div>
-        <h1 className="text-2xl font-bold text-ci-dark">Conformité &amp; sécurité</h1>
+      <div className="flex flex-col gap-2">
+        <div className="ci-flag-rule" />
+        <h1 className="text-2xl font-bold text-ci-ink">Conformité &amp; sécurité</h1>
         <p className="text-sm text-ci-gray mt-1">
           Préparation à l&apos;homologation (doc 01 §16). Ce centre documente l&apos;état réel du
           prototype — il ne prétend jamais qu&apos;un contrôle existe quand il n&apos;a pas encore été
@@ -81,11 +82,11 @@ export default async function CompliancePage() {
       </div>
 
       <section>
-        <h2 className="font-semibold text-ci-dark mb-3">Inventaire des données et finalités</h2>
+        <h2 className="font-semibold text-ci-ink mb-3 text-lg">Inventaire des données et finalités</h2>
         <div className="flex flex-col gap-2">
           {DATA_INVENTORY.map((row) => (
-            <div key={row.table} className="border border-gray-200 rounded-md p-3">
-              <p className="font-mono text-sm text-ci-dark">{row.table}</p>
+            <div key={row.table} className="ci-card">
+              <p className="font-mono text-sm text-ci-ink">{row.table}</p>
               <p className="text-sm text-ci-gray mt-1">
                 <strong>Contenu :</strong> {row.content}
               </p>
@@ -101,11 +102,11 @@ export default async function CompliancePage() {
       </section>
 
       <section>
-        <h2 className="font-semibold text-ci-dark mb-3">Contrôle des accès</h2>
+        <h2 className="font-semibold text-ci-ink mb-3 text-lg">Contrôle des accès</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {Object.entries(ROLE_LABELS).map(([code, label]) => (
-            <div key={code} className="border border-gray-200 rounded-md p-3 text-center">
-              <p className="text-xl font-bold text-ci-dark">{roleCounts[code] ?? 0}</p>
+            <div key={code} className="ci-card text-center">
+              <p className="text-xl font-bold text-ci-ink">{roleCounts[code] ?? 0}</p>
               <p className="text-xs text-ci-gray">{label}</p>
             </div>
           ))}
@@ -118,13 +119,15 @@ export default async function CompliancePage() {
       </section>
 
       <section>
-        <h2 className="font-semibold text-ci-dark mb-3">Audit et gestion des incidents</h2>
+        <h2 className="font-semibold text-ci-ink mb-3 text-lg">Audit et gestion des incidents</h2>
         <div
-          className={`border rounded-md p-4 ${
-            chainStatus.consistent ? "border-ci-green bg-green-50" : "border-red-300 bg-red-50"
-          }`}
+          className="rounded-xl p-4 border"
+          style={{
+            borderColor: chainStatus.consistent ? "rgba(0,132,61,0.3)" : "#fca5a5",
+            background: chainStatus.consistent ? "rgba(0,132,61,0.06)" : "#fef2f2",
+          }}
         >
-          <p className="font-semibold">
+          <p className="font-semibold text-ci-ink">
             {chainStatus.consistent
               ? `✓ Journal d'audit intact (${chainStatus.checkedCount} événement(s) vérifié(s))`
               : "⚠ Altération détectée dans le journal d'audit"}
@@ -135,7 +138,7 @@ export default async function CompliancePage() {
             ? `${openIncidents.length} incident(s) ouvert(s) — écarts de réconciliation détectés au dépouillement, jamais corrigés silencieusement (doc 01 §4.4).`
             : "Aucun incident ouvert."}
         </p>
-        <Link href="/admin/audit" className="text-ci-green font-semibold text-sm">
+        <Link href="/admin/audit" className="text-ci-green font-semibold text-sm hover:underline">
           Voir le journal d&apos;audit détaillé →
         </Link>
         <p className="text-sm text-ci-gray mt-3">
@@ -151,9 +154,9 @@ export default async function CompliancePage() {
                 isSuperAdmin(session.roles) ||
                 (incident.electionId && canManageElection(session.roles, incident.electionId));
               return (
-                <li key={incident.id} className="border border-gray-200 rounded-md p-3">
-                  <p className="text-sm text-ci-dark">{incident.description}</p>
-                  <div className="flex items-center justify-between mt-2">
+                <li key={incident.id} className="ci-card">
+                  <p className="text-sm text-ci-ink">{incident.description}</p>
+                  <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
                     <span className="text-xs text-ci-gray">
                       {INCIDENT_STATUS_LABELS[incident.status]} ·{" "}
                       {incident.openedAt.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
@@ -164,15 +167,12 @@ export default async function CompliancePage() {
                         <select
                           name="status"
                           defaultValue={incident.status === "open" ? "investigating" : "resolved"}
-                          className="text-sm rounded-md border border-gray-300 px-2 py-1"
+                          className="text-sm rounded-lg border border-gray-300 px-2 py-1.5"
                         >
                           <option value="investigating">En cours d&apos;investigation</option>
                           <option value="resolved">Résolu</option>
                         </select>
-                        <button
-                          type="submit"
-                          className="text-sm rounded-md border-2 border-ci-dark text-ci-dark font-semibold px-3 py-1"
-                        >
+                        <button type="submit" className="ci-btn-outline text-sm px-3 py-1.5 min-h-0">
                           Mettre à jour
                         </button>
                       </form>
@@ -186,14 +186,14 @@ export default async function CompliancePage() {
       </section>
 
       <section>
-        <h2 className="font-semibold text-ci-dark mb-3">Évaluation des risques</h2>
+        <h2 className="font-semibold text-ci-ink mb-3 text-lg">Évaluation des risques</h2>
         <p className="text-sm text-ci-gray">
           Le modèle de menaces complet (16 scénarios, de l&apos;usurpation d&apos;identité à la
           falsification rétroactive de la chaîne d&apos;intégrité) et les contre-mesures retenues sont
           documentés dans{" "}
           <a
             href="https://github.com/gouamenedadi-bit/E-VOTE-CI/blob/main/docs/06-plan-de-securite.md"
-            className="text-ci-green font-semibold"
+            className="text-ci-green font-semibold hover:underline"
           >
             docs/06-plan-de-securite.md
           </a>
@@ -204,8 +204,8 @@ export default async function CompliancePage() {
       </section>
 
       <section>
-        <h2 className="font-semibold text-ci-dark mb-3">Plan de continuité et de reprise</h2>
-        <p className="text-sm text-ci-orange bg-orange-50 border border-orange-200 rounded-md p-3">
+        <h2 className="font-semibold text-ci-ink mb-3 text-lg">Plan de continuité et de reprise</h2>
+        <p className="text-sm text-ci-orange bg-orange-50 border border-ci-orange/25 rounded-xl p-3">
           ⚠ Aucune procédure de sauvegarde/restauration automatisée n&apos;est encore implémentée dans
           ce prototype. En mode démonstration, l&apos;état vit en mémoire et est perdu au redémarrage
           du serveur. En mode Supabase, les sauvegardes automatiques de la plateforme s&apos;appliquent,
@@ -215,7 +215,7 @@ export default async function CompliancePage() {
       </section>
 
       <section>
-        <h2 className="font-semibold text-ci-dark mb-3">Procédure d&apos;audit indépendant</h2>
+        <h2 className="font-semibold text-ci-ink mb-3 text-lg">Procédure d&apos;audit indépendant</h2>
         <p className="text-sm text-ci-gray">
           Non réalisé à ce stade. Avant toute évolution vers un usage officiel : audit de sécurité
           externe (OWASP Top 10, logique métier du jeton/bulletin, politiques RLS), test de
@@ -225,13 +225,13 @@ export default async function CompliancePage() {
       </section>
 
       <section>
-        <h2 className="font-semibold text-ci-dark mb-3">Registre des versions logicielles</h2>
+        <h2 className="font-semibold text-ci-ink mb-3 text-lg">Registre des versions logicielles</h2>
         <p className="text-sm text-ci-gray">
           Version courante : <code className="font-mono">{packageJson.version}</code>. Historique
           complet des changements :{" "}
           <a
             href="https://github.com/gouamenedadi-bit/E-VOTE-CI/commits/main"
-            className="text-ci-green font-semibold"
+            className="text-ci-green font-semibold hover:underline"
           >
             journal des commits GitHub
           </a>
@@ -240,7 +240,7 @@ export default async function CompliancePage() {
       </section>
 
       <section>
-        <h2 className="font-semibold text-ci-dark mb-3">Validation avant mise en production</h2>
+        <h2 className="font-semibold text-ci-ink mb-3 text-lg">Validation avant mise en production</h2>
         <p className="text-sm text-ci-gray">
           À ce stade : build de production (<code>next build</code>), suite de tests unitaires et de
           bout en bout exécutée avant chaque évolution publiée. Aucune procédure formelle

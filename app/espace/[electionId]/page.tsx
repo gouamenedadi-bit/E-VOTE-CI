@@ -30,12 +30,13 @@ export default async function VotePage({
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10 flex flex-col gap-6">
-      <Link href="/espace" className="text-ci-green font-semibold">
+      <Link href="/espace" className="text-ci-green font-semibold hover:underline w-fit">
         ← Retour
       </Link>
 
-      <div>
-        <h1 className="text-2xl font-bold text-ci-dark">{election.name}</h1>
+      <div className="flex flex-col gap-2">
+        <div className="ci-flag-rule" />
+        <h1 className="text-2xl font-bold text-ci-ink">{election.name}</h1>
         <p className="text-ci-gray text-sm">
           Scrutin : {election.typeLabel || "Simulation"} · ouvert jusqu&apos;au{" "}
           {election.endsAt.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}

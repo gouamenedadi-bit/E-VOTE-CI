@@ -31,28 +31,28 @@ export default async function BureauxDeVotePage({
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10 flex flex-col gap-6">
-      <Link href="/admin" className="text-ci-green font-semibold">
+      <Link href="/admin" className="text-ci-green font-semibold hover:underline w-fit">
         ← Administration
       </Link>
 
-      <h1 className="text-2xl font-bold text-ci-dark">Bureaux de vote</h1>
+      <div className="flex flex-col gap-2">
+        <div className="ci-flag-rule" />
+        <h1 className="text-2xl font-bold text-ci-ink">Bureaux de vote</h1>
+      </div>
 
       {erreur && (
-        <p role="alert" className="rounded-md bg-red-50 text-red-700 border border-red-200 p-3">
+        <p role="alert" className="rounded-lg bg-red-50 text-red-700 border border-red-200 p-3">
           {ERROR_MESSAGES[erreur] ?? "Erreur de validation."}
         </p>
       )}
 
       <ul className="flex flex-col gap-2">
         {stations.map((s) => (
-          <li
-            key={s.id}
-            className="border border-gray-200 rounded-md p-3 flex items-center justify-between"
-          >
-            <span>
+          <li key={s.id} className="ci-card py-3 flex items-center justify-between">
+            <span className="text-ci-ink">
               <strong>{s.code}</strong> — {s.name} · {s.communeName} ({s.regionName})
             </span>
-            <span className={s.isActive ? "text-ci-green text-sm" : "text-ci-gray text-sm"}>
+            <span className={s.isActive ? "ci-badge-green" : "ci-badge-orange"}>
               {s.isActive ? "Actif" : "Inactif"}
             </span>
           </li>
@@ -60,29 +60,16 @@ export default async function BureauxDeVotePage({
         {stations.length === 0 && <li className="text-ci-gray text-sm">Aucun bureau créé.</li>}
       </ul>
 
-      <h2 className="font-semibold text-ci-dark">Ajouter un bureau</h2>
-      <form action={createPollingStationAction} className="flex flex-col gap-3">
+      <h2 className="font-semibold text-ci-ink text-lg">Ajouter un bureau</h2>
+      <form action={createPollingStationAction} className="ci-card flex flex-col gap-3 p-5">
         <div className="flex gap-3">
-          <input
-            name="code"
-            required
-            placeholder="Code (ex. BV-003)"
-            className="sm:w-40 min-h-[44px] rounded-md border border-gray-300 px-3 text-base"
-          />
-          <input
-            name="name"
-            required
-            placeholder="Nom (ex. École C)"
-            className="flex-1 min-h-[44px] rounded-md border border-gray-300 px-3 text-base"
-          />
+          <input name="code" required placeholder="Code (ex. BV-003)" className="ci-input sm:w-40" />
+          <input name="name" required placeholder="Nom (ex. École C)" className="ci-input flex-1" />
         </div>
 
         <GeographyFields regions={regions} departments={departments} communes={communes} />
 
-        <button
-          type="submit"
-          className="self-start min-h-[44px] rounded-md border-2 border-ci-dark text-ci-dark font-semibold px-5"
-        >
+        <button type="submit" className="ci-btn-outline self-start">
           + Ajouter
         </button>
       </form>

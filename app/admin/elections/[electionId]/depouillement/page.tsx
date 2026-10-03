@@ -29,19 +29,19 @@ export default async function DepouillementPage({
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10 flex flex-col gap-6">
-      <Link href={`/admin/elections/${electionId}`} className="text-ci-green font-semibold">
+      <Link href={`/admin/elections/${electionId}`} className="text-ci-green font-semibold hover:underline w-fit">
         ← {election.name}
       </Link>
 
-      <h1 className="text-2xl font-bold text-ci-dark">Dépouillement — {election.name}</h1>
+      <div className="flex flex-col gap-2">
+        <div className="ci-flag-rule" />
+        <h1 className="text-2xl font-bold text-ci-ink">Dépouillement — {election.name}</h1>
+      </div>
 
       {!summary.hasTally && (
         <form action={runTallyAction}>
           <input type="hidden" name="electionId" value={electionId} />
-          <button
-            type="submit"
-            className="min-h-[44px] rounded-md bg-ci-dark text-white font-semibold px-5"
-          >
+          <button type="submit" className="ci-btn-accent">
             Lancer le dépouillement
           </button>
         </form>
@@ -50,11 +50,13 @@ export default async function DepouillementPage({
       {summary.hasTally && (
         <>
           <div
-            className={`border rounded-md p-4 ${
-              summary.consistent ? "border-ci-green bg-green-50" : "border-ci-orange bg-orange-50"
-            }`}
+            className="rounded-xl p-4 border"
+            style={{
+              borderColor: summary.consistent ? "rgba(0,132,61,0.3)" : "rgba(242,118,12,0.35)",
+              background: summary.consistent ? "rgba(0,132,61,0.06)" : "rgba(242,118,12,0.08)",
+            }}
           >
-            <p className="font-semibold">
+            <p className="font-semibold text-ci-ink">
               {summary.consistent ? "✓ Cohérent" : "⚠ Écart détecté"} — {summary.participationCount}{" "}
               participation(s) enregistrée(s), {summary.ballotCount} bulletin(s) décompté(s).
             </p>
@@ -68,17 +70,16 @@ export default async function DepouillementPage({
 
           {summary.stations.length > 1 && (
             <div>
-              <h2 className="font-semibold text-ci-dark mb-2">Contrôle par bureau</h2>
+              <h2 className="font-semibold text-ci-ink mb-2 text-lg">Contrôle par bureau</h2>
               <ul className="flex flex-col gap-2">
                 {summary.stations.map((s) => (
                   <li
                     key={s.pollingStationId ?? "none"}
-                    className={`border rounded-md p-3 flex items-center justify-between ${
-                      s.consistent ? "border-gray-200" : "border-ci-orange bg-orange-50"
-                    }`}
+                    className={s.consistent ? "ci-card py-3 flex items-center justify-between" : "ci-card py-3 flex items-center justify-between"}
+                    style={!s.consistent ? { borderColor: "rgba(242,118,12,0.4)", background: "rgba(242,118,12,0.06)" } : undefined}
                   >
-                    <span>{s.pollingStationLabel}</span>
-                    <span className="text-sm">
+                    <span className="text-ci-ink">{s.pollingStationLabel}</span>
+                    <span className="text-sm text-ci-ink">
                       {s.consistent ? "✓" : "⚠"} {s.participationCount} / {s.ballotCount}
                     </span>
                   </li>
@@ -89,17 +90,14 @@ export default async function DepouillementPage({
 
           <ul className="flex flex-col gap-2">
             {summary.records.map((r, i) => (
-              <li
-                key={i}
-                className="border border-gray-200 rounded-md p-3 flex items-center justify-between"
-              >
-                <span>{r.candidateName}</span>
-                <span className="font-semibold">{r.voteCount}</span>
+              <li key={i} className="ci-card py-3 flex items-center justify-between">
+                <span className="text-ci-ink">{r.candidateName}</span>
+                <span className="font-bold text-ci-ink text-lg">{r.voteCount}</span>
               </li>
             ))}
           </ul>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             {summary.publication?.status === "published" && (
               <p className="text-ci-green font-semibold">
                 ✓ Résultats publiés le{" "}
@@ -110,13 +108,10 @@ export default async function DepouillementPage({
               </p>
             )}
             {summary.publication?.status === "verified" && (
-              <form action={publishResultsAction}>
+              <form action={publishResultsAction} className="flex flex-col gap-2">
                 <input type="hidden" name="electionId" value={electionId} />
-                <p className="text-sm text-ci-gray mb-2">✓ Résultats vérifiés — prêts à publier.</p>
-                <button
-                  type="submit"
-                  className="min-h-[44px] rounded-md bg-ci-green text-white font-semibold px-5 hover:bg-ci-green/90"
-                >
+                <p className="text-sm text-ci-gray">✓ Résultats vérifiés — prêts à publier.</p>
+                <button type="submit" className="ci-btn-primary">
                   Publier les résultats
                 </button>
               </form>
@@ -124,21 +119,18 @@ export default async function DepouillementPage({
             {(!summary.publication || summary.publication.status === "draft") && (
               <form action={verifyResultsAction}>
                 <input type="hidden" name="electionId" value={electionId} />
-                <button
-                  type="submit"
-                  className="min-h-[44px] rounded-md border-2 border-ci-dark text-ci-dark font-semibold px-5"
-                >
+                <button type="submit" className="ci-btn-outline">
                   Vérifier les résultats
                 </button>
               </form>
             )}
             <a
               href={`/admin/elections/${electionId}/depouillement/export`}
-              className="text-ci-green font-semibold text-sm"
+              className="text-ci-green font-semibold text-sm hover:underline"
             >
               Exporter le PV (CSV) ↓
             </a>
-            <Link href="/resultats" className="text-ci-green font-semibold text-sm">
+            <Link href="/resultats" className="text-ci-green font-semibold text-sm hover:underline">
               Voir la page publique →
             </Link>
           </div>

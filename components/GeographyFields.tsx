@@ -56,7 +56,7 @@ export function GeographyFields({
           setRegionId(e.target.value);
           setDepartmentId("");
         }}
-        className="flex-1 min-h-[44px] rounded-md border border-gray-300 px-3 text-base"
+        className="ci-input flex-1"
         aria-label="Région"
       >
         {regions.map((r) => (
@@ -69,7 +69,7 @@ export function GeographyFields({
       <select
         value={effectiveDepartmentId}
         onChange={(e) => setDepartmentId(e.target.value)}
-        className="flex-1 min-h-[44px] rounded-md border border-gray-300 px-3 text-base"
+        className="ci-input flex-1"
         aria-label="Département"
       >
         {filteredDepartments.map((d) => (
@@ -82,7 +82,7 @@ export function GeographyFields({
       <select
         name="communeId"
         required
-        className="flex-1 min-h-[44px] rounded-md border border-gray-300 px-3 text-base"
+        className="ci-input flex-1"
         aria-label="Commune"
       >
         {filteredCommunes.map((c) => (

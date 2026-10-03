@@ -13,8 +13,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr">
       <body className="min-h-screen flex flex-col">
         <SimulationBanner />
-        <div className="flex-1">{children}</div>
-        <footer className="border-t border-gray-200 text-sm text-ci-gray text-center py-4 px-4">
+        <div className="flex-1 ci-animate-in">{children}</div>
+        <footer className="border-t border-ci-orange/15 text-sm text-ci-gray text-center py-5 px-4 bg-white">
+          <div className="ci-flag-rule mx-auto mb-3" />
           E-VOTE CI — prototype de démonstration · aucune donnée réelle · ceci n&apos;est pas
           un système officiel
         </footer>

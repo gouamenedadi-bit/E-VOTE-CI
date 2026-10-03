@@ -36,29 +36,29 @@ export default async function MonBureauPage() {
   return (
     <main className="max-w-2xl mx-auto px-4 py-10 flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-ci-dark">Mon bureau</h1>
+        <div className="ci-flag-rule mb-2" />
+      </div>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-ci-ink">Mon bureau</h1>
         <form action={adminLogoutAction}>
-          <button type="submit" className="text-sm text-ci-gray underline">
+          <button type="submit" className="text-sm text-ci-gray underline hover:text-ci-ink">
             Déconnexion
           </button>
         </form>
       </div>
 
-      <div className="border border-gray-200 rounded-md p-4">
-        <p className="font-semibold text-ci-dark">
+      <div className="ci-card ci-card--accent-green">
+        <p className="font-semibold text-ci-ink text-lg">
           {station.code} — {station.name}
         </p>
         <p className="text-sm text-ci-gray">{station.communeName}</p>
       </div>
 
-      <h2 className="font-semibold text-ci-dark">Scrutins rattachés à ce bureau</h2>
+      <h2 className="font-semibold text-ci-ink text-lg">Scrutins rattachés à ce bureau</h2>
       <ul className="flex flex-col gap-2">
         {elections.map((election, i) => (
-          <li
-            key={election.id}
-            className="border border-gray-200 rounded-md p-3 flex items-center justify-between"
-          >
-            <span>
+          <li key={election.id} className="ci-card py-3 flex items-center justify-between">
+            <span className="text-ci-ink">
               {election.name} · {STATUS_LABELS[election.status] ?? election.status}
             </span>
             <span className="text-sm text-ci-gray">{counts[i]} participation(s)</span>

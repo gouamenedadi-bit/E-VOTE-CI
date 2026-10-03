@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ci-orange: #f77f00;
-  --color-ci-green: #009e60;
-  --color-ci-dark: #1b2430;
+  /* Couleurs nationales (drapeau ivoirien), affinees pour un usage institutionnel */
+  --color-ci-orange: #f2760c;
+  --color-ci-orange-light: #ffb067;
+  --color-ci-green: #00843d;
+  --color-ci-green-light: #4caf7d;
+  --color-ci-dark: #15202b;
   --color-ci-gray: #4a5568;
+  --color-ci-ink: #121417; /* texte principal, quasi-noir */
 }
 
 html {
@@ -12,11 +16,165 @@ html {
 }
 
 body {
-  background-color: #ffffff;
-  color: var(--color-ci-dark);
+  background-color: #fffdfb;
+  color: var(--color-ci-ink);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--color-ci-ink);
+  letter-spacing: -0.01em;
 }
 
 :focus-visible {
   outline: 3px solid var(--color-ci-orange);
   outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ---------------------------------------------------------------------
+   Systeme de composants : cartes, boutons, badges — ombre portee orange
+   clair et bordures aux couleurs nationales, usage coherent sur tout
+   le site (doc 01 §6 : lisible, sobre, pas d'animation distrayante).
+   --------------------------------------------------------------------- */
+
+@layer components {
+  .ci-card {
+    @apply bg-white rounded-xl border border-ci-orange/15 p-4;
+    box-shadow: 0 2px 10px -2px rgba(242, 118, 12, 0.1);
+    transition: box-shadow 220ms ease, transform 220ms ease, border-color 220ms ease;
+  }
+
+  .ci-card:hover {
+    border-color: color-mix(in srgb, var(--color-ci-orange) 35%, transparent);
+    box-shadow: 0 8px 24px -6px rgba(242, 118, 12, 0.18);
+  }
+
+  .ci-card--accent-green {
+    border-color: color-mix(in srgb, var(--color-ci-green) 25%, transparent);
+    box-shadow: 0 2px 10px -2px rgba(0, 132, 61, 0.1);
+  }
+
+  .ci-btn-primary,
+  .ci-btn-accent,
+  .ci-btn-outline,
+  .ci-btn-outline-orange {
+    @apply inline-flex items-center justify-center gap-2 min-h-[44px] rounded-lg px-5 font-semibold text-base;
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, color 180ms ease,
+      border-color 180ms ease;
+  }
+
+  .ci-btn-primary:active,
+  .ci-btn-accent:active,
+  .ci-btn-outline:active,
+  .ci-btn-outline-orange:active {
+    transform: translateY(1px) scale(0.99);
+  }
+
+  .ci-btn-primary {
+    @apply bg-ci-green text-white;
+    box-shadow: 0 3px 12px -2px rgba(0, 132, 61, 0.35);
+  }
+  .ci-btn-primary:hover {
+    box-shadow: 0 6px 18px -3px rgba(0, 132, 61, 0.45);
+    transform: translateY(-1px);
+  }
+  .ci-btn-primary:disabled {
+    @apply opacity-40 cursor-not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .ci-btn-accent {
+    @apply bg-ci-dark text-white;
+    box-shadow: 0 3px 12px -2px rgba(21, 32, 43, 0.35);
+  }
+  .ci-btn-accent:hover {
+    box-shadow: 0 6px 18px -3px rgba(21, 32, 43, 0.45);
+    transform: translateY(-1px);
+  }
+
+  .ci-btn-outline {
+    @apply bg-white text-ci-dark border-2 border-ci-dark;
+  }
+  .ci-btn-outline:hover {
+    @apply bg-ci-dark text-white;
+  }
+
+  .ci-btn-outline-orange {
+    @apply bg-white text-ci-orange border-2 border-ci-orange;
+  }
+  .ci-btn-outline-orange:hover {
+    @apply bg-ci-orange text-white;
+    box-shadow: 0 6px 16px -4px rgba(242, 118, 12, 0.45);
+  }
+
+  .ci-input {
+    @apply min-h-[44px] rounded-lg border border-gray-300 px-3 text-base text-ci-ink bg-white;
+    transition: border-color 180ms ease, box-shadow 180ms ease;
+  }
+  .ci-input:focus {
+    @apply border-ci-orange outline-none;
+    box-shadow: 0 0 0 4px rgba(242, 118, 12, 0.12);
+  }
+
+  .ci-badge-green,
+  .ci-badge-orange {
+    @apply inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full;
+  }
+  .ci-badge-green {
+    @apply bg-ci-green/10 text-ci-green;
+  }
+  .ci-badge-orange {
+    @apply bg-ci-orange/10 text-ci-orange;
+  }
+
+  /* Liseré discret aux couleurs nationales en tete de section, pour les
+     ecrans institutionnels (accueil, presentation, cartes de resultats). */
+  .ci-flag-rule {
+    @apply h-1 w-14 rounded-full;
+    background: linear-gradient(
+      90deg,
+      var(--color-ci-orange) 0%,
+      var(--color-ci-orange) 33%,
+      #ffffff 33%,
+      #ffffff 66%,
+      var(--color-ci-green) 66%,
+      var(--color-ci-green) 100%
+    );
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Animation subtile d'apparition — jamais de boucle, jamais d'auto-play
+   distrayant (doc 01 §6). Desactivee si l'utilisateur prefere moins de
+   mouvement.
+   --------------------------------------------------------------------- */
+@keyframes ci-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ci-animate-in {
+  animation: ci-fade-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ci-animate-in {
+    animation: none;
+  }
+  .ci-card,
+  .ci-btn {
+    transition: none;
+  }
 }

@@ -23,25 +23,25 @@ export default async function RecuPage({
 
   return (
     <main className="max-w-md mx-auto px-4 py-12 flex flex-col gap-6 items-center text-center">
-      <div className="w-16 h-16 rounded-full bg-ci-green text-white flex items-center justify-center text-3xl">
+      <div
+        className="w-20 h-20 rounded-full bg-ci-green text-white flex items-center justify-center text-4xl ci-animate-in"
+        style={{ boxShadow: "0 8px 24px -4px rgba(0,132,61,0.45)" }}
+      >
         ✓
       </div>
 
-      <h1 className="text-2xl font-bold text-ci-dark">Participation enregistrée</h1>
+      <h1 className="text-2xl font-bold text-ci-ink">Participation enregistrée</h1>
 
-      <div className="border border-gray-200 rounded-md p-4 w-full text-left">
+      <div className="ci-card w-full text-left">
         <p className="text-ci-gray text-sm">Scrutin</p>
-        <p className="font-semibold text-ci-dark">{election.name}</p>
+        <p className="font-semibold text-ci-ink text-lg">{election.name}</p>
       </div>
 
       <p className="text-ci-gray">
         Votre choix reste secret — il n&apos;est affiché nulle part, y compris sur cette page.
       </p>
 
-      <Link
-        href="/espace"
-        className="min-h-[44px] flex items-center justify-center rounded-md bg-ci-green text-white font-semibold px-6 hover:bg-ci-green/90 w-full"
-      >
+      <Link href="/espace" className="ci-btn-primary w-full">
         Retour au tableau de bord
       </Link>
     </main>
